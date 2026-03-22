@@ -220,3 +220,8 @@ a[href] {
     color: rgb(var(--highlight));
     text-decoration: underline;
 }
+
+pre {
+    padding: 1em;
+    background: rgb(var(--one));
+}

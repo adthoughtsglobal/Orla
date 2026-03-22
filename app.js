@@ -180,17 +180,19 @@ function attachWsHandlers() {
                 break;
             case "message_delete": {
                 const mid = data.id;
+                let user = "someone";
+                console.log(state.messages[mid])
                 if (mid) {
-                    if (state.messages[mid]) delete state.messages[mid];
+                    if (state.messages[mid]) {
+                        user = state.messages[mid].user;
+                        delete state.messages[mid];
+                    }
 
                     const node = document.querySelector(
                         `.message[data-id="${CSS.escape(mid)}"]`,
                     );
                     if (node) {
-                        if (!settings.get("ori_msg_lgger"))
-                            node.remove()
-                        else
-                            node.style.color = "red";
+                        node.style.color = "red";
                     };
 
                     document
@@ -199,6 +201,13 @@ function attachWsHandlers() {
                             el.classList.add("missing");
                             el.innerHTML = "Replying to deleted message";
                         });
+                    document.getElementById("logspane").appendChild(
+                        MessageBuilder.action({
+                            icon: "close",
+                            username: user,
+                            action: "deleted a message"
+                        })
+                    )
                 }
                 break;
             }
@@ -216,6 +225,14 @@ function attachWsHandlers() {
                         formatMessageContent(data.content) +
                         '<span class="edited-tag">(edited)</span>';
                 if (state.editing && state.editing.id === mid) cancelEdit();
+
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "edit",
+                        username: data.message.user,
+                        action: "edited a message"
+                    })
+                )
                 break;
             }
             case 'typing':
@@ -289,14 +306,14 @@ function attachWsHandlers() {
                     state.online_users[u.username] = u;
                     state.users[u.username] = u;
                     renderMembers();
-                document.getElementById("logspane").appendChild(
-                    MessageBuilder.action({
-                        icon: "arrow_forward",
-                        username: u.username,
-                        action: "is online",
-                        time: ""
-                    })
-                )
+                    document.getElementById("logspane").appendChild(
+                        MessageBuilder.action({
+                            icon: "arrow_forward",
+                            username: u.username,
+                            action: "is online",
+                            time: ""
+                        })
+                    )
                 }
                 break;
             }
@@ -308,7 +325,7 @@ function attachWsHandlers() {
                     document.getElementById("logspane").appendChild(
                         MessageBuilder.action({
                             icon: "arrow_back",
-                            username: u.username,
+                            username: uname,
                             action: "went offline",
                             time: ""
                         })
