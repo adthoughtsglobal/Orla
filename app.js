@@ -383,40 +383,22 @@ function showError(msg) {
     console.error(msg);
     say(msg, "failed");
 }
-
 function listChannels(channelList) {
-    const container = document.getElementById("channels");
-    if (!container) return;
-    container.innerHTML = "";
+    const result = [];
+
     for (let channel of channelList) {
-        let newChannel = null;
-        if (channel["type"] === "text") {
-            if (channel.name) state.channels[channel.name] = channel;
-            newChannel = document.createElement("div");
-            newChannel.id = `channel_${channel["name"]}`;
-            newChannel.classList.add("single_chnl");
-            const unread = state.unread[channel["name"]] || 0;
-            const safeName = escapeHTML(channel["name"] || "");
-            newChannel.innerHTML = `<div class="symb">
-                        forum
-                    </div>
-                    <div class="name">
-                        ${safeName}
-                    </div>
-                    ${unread > 0 ? `<span class=\"badge\"></span>` : ""}
-                    `;
-            newChannel.setAttribute("active",
-                channel["name"] === state.currentChannel
-                    ? "true"
-                    : "false");
-            newChannel.addEventListener("click", () =>
-                changeChannel(channel["name"]),
-            );
-        } else if (channel["type"] === "separator") {
-            newChannel = document.createElement("hr");
+        if (channel.type === "text") {
+            result.push({
+                name: channel.name || "",
+                unread: state.unread[channel.name] || 0,
+                active: channel.name === state.currentChannel
+            });
+        } else if (channel.type === "separator") {
+            result.push({ type: "separator" });
         }
-        if (newChannel) container.appendChild(newChannel);
     }
+
+    state.channelsArray = result;
 }
 
 

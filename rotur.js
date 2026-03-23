@@ -1649,7 +1649,7 @@ class RoturExtension {
 
 var roturExtension = null;
 let localroturdata = localStorage.getItem("orion-rotur");
-
+document.getElementById("fullloader").style.display = "flex";
 async function attemptConnection() {
     if (roturExtension?.is_connected) {
         return true;
@@ -1670,21 +1670,28 @@ async function logoutofrtr() {
 async function roturTWEventCall(data, payload) {
     if (data == "roturEXT_whenAuthenticated") {
         notify(`Logged in ${roturExtension.user.username}, welcome back!`)
-greenflag();
+        greenflag();
+        const el = document.getElementById("fullloader");
+        el.style.transition = "opacity 0.4s ease";
+        el.style.opacity = "0";
+        setTimeout(() => {
+            el.style.display = "none";
+            el.remove();
+        }, 400);
         if (settings.get("auto_daily") === true && !settings.get("claimed_daily")) {
             fetch("https://social.rotur.dev/claim_daily?auth=" + roturExtension.userToken).then(r => {
                 if (r.ok) {
                     notify("You got the daily credit!")
                     settings.set("claimed_daily", true, 24 * 60 * 60 * 1000)
                 } else {
-         say("no daily for you")
+                    say("no daily for you")
                 }
             })
         }
 
     } else if (data == "roturEXT_whenConnected") {
         (async () => {
-         say("Connected")
+            say("Connected")
             let localroturdata = localStorage.getItem("orion-rotur");
             if (localroturdata) {
                 let targettype = JSON.parse(localroturdata).type;

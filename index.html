@@ -15,19 +15,28 @@ s
     </div>
     <div class="cli flex fill x">
         <div class="interactive pane flex fill y">
+            <div id="fullloader">
+                <h1>Orla <i>v0.1</i></h1>
+                <div class="loader"></div> 
+                <img src="assets/logo_vector.svg">
+            </div>
             <div id="interactive_logs" class="fill">
                
             </div>
             <div class="inputs">
-                <input type="text" placeholder="use commands or send a message...">
+                <input type="text" placeholder="send a message...">
             </div>
         </div>
-        <div class="pane logs" id="logspane">
-         
+        <div class="pane logs">
+         <div id="logspane"></div>
+            <div class="inputs">
+                <input id="commandinput" type="text" placeholder="use commands...">
+            </div>
         </div>
     </div>
     <script src="script.js"></script>
     <script src="rotur.js"></script>
+    <script src="commands.js"></script>
     <script src="app.js"></script>
 </body>
 

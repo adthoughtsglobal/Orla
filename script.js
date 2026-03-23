@@ -77,13 +77,15 @@ class MessageBuilder {
 
         const name = document.createElement("div")
         name.className = "inline bold"
-        name.textContent = username
+        name.innerHTML = username
 
         const act = document.createElement("div")
         act.className = "inline"
-        act.textContent = action
+        act.innerHTML = action
 
-        data.append(ic, name, act)
+        icon && data.appendChild(ic)
+        username && data.appendChild(name)
+        action && data.appendChild(act)
 
         const t = document.createElement("div")
         t.className = "time"
