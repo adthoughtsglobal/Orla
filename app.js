@@ -390,6 +390,7 @@ function listChannels(channelList) {
         if (channel.type === "text") {
             result.push({
                 name: channel.name || "",
+                desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
                 active: channel.name === state.currentChannel
             });
@@ -700,8 +701,10 @@ function renderVisible(message, prevmsg) {
         avatar,
         username: message.user,
         time: timeStr,
-        text
+        text,
+        message
     });
+    setTimeout(() => renderReactions(message, msgEl), 0);
 
     // msgEl.appendChild(buildActions(message));
     return msgEl;
@@ -867,6 +870,12 @@ function listMessages(messageList, channel = state.currentChannel, limit = 100) 
     attemptResolveAllMissingReplies();
     setTimeout(lazyRenderMessages, 100);
 }
+const threshold = 100
+let missedWhileScrolledUp = 0
+
+function shouldAutoScroll(el) {
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+}
 
 function addMessage(messagePacket) {
     const chatArea = document.getElementById("interactive_logs");
@@ -874,7 +883,17 @@ function addMessage(messagePacket) {
         const message = messagePacket["message"];
         chatArea.appendChild(renderMessage(message));
         attemptResolveMissingRepliesFor(message.id);
-        chatArea.scrollTop = chatArea.scrollHeight;
+
+        const atBottom = shouldAutoScroll(chatArea)
+
+        if (atBottom) {
+            chatArea.scrollTop = chatArea.scrollHeight
+            missedWhileScrolledUp = 0
+            updateMissedIndicator(0)
+        } else {
+            missedWhileScrolledUp++
+            updateMissedIndicator(missedWhileScrolledUp)
+        }
     } else {
         const ch = messagePacket["channel"];
         if (ch) {
@@ -883,10 +902,30 @@ function addMessage(messagePacket) {
         }
     }
     setTimeout(() => {
-        lazyRenderMessages(); 1
+        lazyRenderMessages();
     }, 2000);
 }
 
+function handleScroll() {
+    const chatArea = document.getElementById("interactive_logs");
+    if (shouldAutoScroll(chatArea)) {
+        missedWhileScrolledUp = 0
+        updateMissedIndicator(0)
+    }
+}
+
+document.getElementById("interactive_logs").addEventListener("scroll", handleScroll)
+
+function updateMissedIndicator(count) {
+    let ele = document.getElementById("missedmsgs");
+    let eledad = ele.parentElement;
+    if (count) {
+        eledad.style.display = "flex";
+        ele.innerText = count;
+    } else {
+        eledad.style.display = "none";
+    }
+}
 
 function changeChannel(channel) {
     lastmsgid = null;
@@ -897,11 +936,15 @@ function changeChannel(channel) {
         el.classList.toggle("active", el.id === `channel_${channel}`);
     });
 
-    document.getElementById("channelNameDisp").innerText = channel;
-    document.getElementById("channelDescDisp").innerText = state.channels[channel].description || "Welcome to " + channel;
+    const ch = state.channelsArray.find(c => c.name === channel)
 
-    const mainTxtAr = document.getElementById("mainTxtAr");
-    if (mainTxtAr) mainTxtAr.placeholder = `Message #${channel}`;
+    document.getElementById("logspane").appendChild(
+        MessageBuilder.action({
+            icon: "notifications_active",
+            action: ch ? ch.desc : "Listening to " + channel,
+            time: ""
+        })
+    )
 
     const chatArea = document.getElementById("interactive_logs");
     if (chatArea) chatArea.innerHTML = "";
@@ -1237,15 +1280,9 @@ function lazyRenderMessages(selector = '.sing_msg') {
     lazyRenderMessages._observer = observer;
 }
 
-
 function renderReactions(msg, container) {
-    const existing = container.querySelector('.message-reactions');
-    if (existing) existing.remove();
-
     const reactions = msg.reactions;
-    if (!reactions || Object.keys(reactions).length === 0) {
-        return;
-    }
+    if (!reactions || Object.keys(reactions).length === 0) return;
 
     const reactionsDiv = document.createElement('div');
     reactionsDiv.className = 'message-reactions';
@@ -1257,15 +1294,17 @@ function renderReactions(msg, container) {
         const hasReacted = users.includes(state.currentUser?.username);
 
         const reactionEl = document.createElement('span');
-        reactionEl.className = 'reaction' + (hasReacted ? ' reacted' : '');
+        reactionEl.className = 'reaction' + (hasReacted ? ' super' : '');
+        reactionEl.setAttribute("data-tooltip", users.toString());
         reactionEl.innerHTML = `
-            <span class="reaction-emoji">${emoji}</span>
-            <span class="reaction-count">${count}</span>
+            [<span class="reaction-emoji">${emoji}</span>
+            <span class="reaction-count">${count}</span>]
         `;
         reactionEl.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleReaction(msg.id, emoji);
         });
+
         reactionsDiv.appendChild(reactionEl);
     }
 

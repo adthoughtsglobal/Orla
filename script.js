@@ -5,9 +5,10 @@ class MessageBuilder {
         return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
 
-    static message({ avatar, username, text }) {
+    static message({ avatar, username, text, message }) {
         const root = document.createElement("div")
         root.className = "msg"
+        root.setAttribute("data-id", message.id)
 
         const data = document.createElement("div")
         data.className = "data"
@@ -106,3 +107,41 @@ class MessageBuilder {
         return root
     }
 }
+const tooltip = document.createElement("div")
+tooltip.style.position = "fixed"
+tooltip.style.pointerEvents = "none"
+tooltip.style.zIndex = "999999"
+tooltip.style.padding = "6px 10px"
+tooltip.style.background = "rgb(var(--three))"
+tooltip.style.color = "#fff"
+tooltip.style.borderRadius = "4px"
+tooltip.style.fontSize = "12px"
+tooltip.style.whiteSpace = "nowrap"
+tooltip.style.transform = "translate(-50%, -135%)"
+tooltip.style.transition = "opacity 0.1s ease"
+tooltip.style.opacity = "0"
+document.body.appendChild(tooltip)
+
+let active = null
+
+document.addEventListener("mouseover", e => {
+  const el = e.target.closest("[data-tooltip]")
+  if (!el) return
+  active = el
+  tooltip.textContent = el.getAttribute("data-tooltip")
+  tooltip.style.opacity = "1"
+})
+
+document.addEventListener("mousemove", e => {
+  if (!active) return
+  tooltip.style.left = e.clientX + "px"
+  tooltip.style.top = e.clientY + "px"
+})
+
+document.addEventListener("mouseout", e => {
+  if (!active) return
+  if (!e.relatedTarget || !active.contains(e.relatedTarget)) {
+    tooltip.style.opacity = "0"
+    active = null
+  }
+})

@@ -11,26 +11,29 @@
 
 <body class="flex x">
     <div class="serverslist">
-s
+        s
     </div>
     <div class="cli flex fill x">
         <div class="interactive pane flex fill y">
             <div id="fullloader">
                 <h1>Orla <i>v0.1</i></h1>
-                <div class="loader"></div> 
+                <div class="loader"></div>
                 <img src="assets/logo_vector.svg">
             </div>
             <div id="interactive_logs" class="fill">
-               
+
+            </div>
+            <div class="seebottom">[
+                <span id="missedmsgs"></span> new messages]
             </div>
             <div class="inputs">
-                <input type="text" placeholder="send a message...">
+                <textarea id="mainTxtAr" type="text" placeholder="send a message..." rows="1"></textarea>
             </div>
         </div>
         <div class="pane logs">
-         <div id="logspane"></div>
+            <div id="logspane"></div>
             <div class="inputs">
-                <input id="commandinput" type="text" placeholder="use commands...">
+                <textarea id="commandinput" rows="1" type="text" placeholder="use commands..."></textarea>
             </div>
         </div>
     </div>

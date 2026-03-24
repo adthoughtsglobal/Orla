@@ -169,11 +169,12 @@ body {
     background: rgb(var(--two));
     display: flex;
 
-    &>input {
+    &>textarea {
         background-color: transparent;
         outline: 0;
         border: 0;
         color: inherit;
+        min-height: 0;
         font: inherit;
         font-family: inherit;
         padding: 1em;
@@ -209,8 +210,8 @@ div#interactive_logs {
         &>.data {
             display: inline-flex;
             gap: 0;
-        width: 0;
-        flex: 1;
+            width: 0;
+            flex: 1;
             align-items: flex-start;
 
             &>* {
@@ -236,7 +237,8 @@ pre {
     background: rgb(var(--one));
 }
 
-strong {
+strong,
+.super {
     color: rgb(var(--highlight));
 }
 
@@ -319,4 +321,23 @@ ul {
         margin-top: .5em;
         display: block;
     }
+}
+
+img.pfp {
+    width: 7em;
+    height: 7em;
+    border: 1px solid rgb(var(--three));
+    position: relative;
+}
+
+.seebottom {
+    padding: 6px 10px;
+    background-color: rgb(var(--three));
+    width: fit-content;
+    right: 1em;
+    top: 1em;
+    position: absolute;
+    justify-content: center;
+    align-items: center;
+    gap: .5em;
 }

@@ -94,6 +94,7 @@ commandinput.addEventListener("keypress", (event) => {
                         time: ""
                     })
                 )
+                break;
             }
             case "help": {
                 document.getElementById("logspane").appendChild(
@@ -119,6 +120,74 @@ commandinput.addEventListener("keypress", (event) => {
                         time: ""
                     })
                 )
+                break;
+            }
+            case "profile": {
+                let user = output.params[0];
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "wand_stars",
+                        action: '<div style="display:flex; gap: .5em">' +
+                    '<img class="pfp" src="https://avatars.rotur.dev/' + user + '">'+ 
+                    `<div><strong>${(state.users[user].nickname && state.users[user].nickname != user) ? (state.users[user].nickname + ` (${user})`) : user }</strong><br>
+                    status: ${state.users[user].status.text + ` (${state.users[user].status?.status})` || state.users[user].status.status}
+                    <br>roles: ${state.users[user].roles.toString()}
+                    </div>
+                    `
+                    +'</div>',
+                        time: ""
+                    })
+                )
+                break;
+            }
+            case "info": {
+                const logo = [
+                    "      ********************     ",
+                    "   **************************  ",
+                    "  *****#@@@@@@@@************** ",
+                    " ****#@@@@#++@@@@@*************",
+                    "****@@@@:......+@@@*****%@#****",
+                    "****@@@:........+@@***@@@@@@%**",
+                    "****@@@:........-@@#*%@@...@@**",
+                    "****@@@%.......:@@@***@@#+%@@**",
+                    "*****@@@@#-.:+@@@@******@@%****",
+                    "******@@@@@@@@@@@**************",
+                    "****#@@***%@%******************",
+                    "***@@%*************************",
+                    "**@@***************************",
+                    "@@@****************************",
+                    "  *****************************",
+                    "   ****************************",
+                    "     **************************"
+                ]
+
+                const entries = [
+                    ["User", state.user.username],
+                    ["Status", state.user.status.status],
+                    ["Channel", state._currentChannel],
+                    ["Server", state.server.name],
+                    ["Server URL", state.server.url],
+                    ["Server Owner", state.server.owner.name],
+                    ["Client", "Orla Client"],
+                    ["Client Repository", "adthoughtsglobal/Orla"]
+                ]
+
+                const pad = (s, n) => s + " ".repeat(Math.max(n - s.length, 0))
+                const maxKey = Math.max(...entries.map(([k]) => k.length))
+
+                const logoText = logo.join("\n")
+
+                const infoText = entries
+                    .map(([k, v]) => pad(k + ":", maxKey + 1) + v)
+                    .join("\n")
+
+                notify(
+                    '<div style="display:flex; font-family:monospace;">' +
+                    '<pre style="margin:0; white-space:pre; line-height:1;">' + logoText + '</pre>' +
+                    '<pre style="margin:0; padding-left:12px; white-space:pre-wrap; word-break:break-word;">' + infoText + '</pre>' +
+                    '</div>'
+                )
+
             }
         }
     }
