@@ -1262,7 +1262,7 @@ class RoturExtension {
     transferCurrency(args) {
         if (!this.is_connected) return "Not Connected";
         if (!this.authenticated) return "Not Logged In";
-
+console.log(args);
         return this.handlePromise({
             cmd: "pmsg",
             val: {
@@ -1270,17 +1270,18 @@ class RoturExtension {
                 client: this.my_client,
                 payload: {
                     amount: args.AMOUNT,
-                    recipient: args.USER,
+                    recipient: args.USER
                 },
-                id: ":3",
-                client: this.my_client,
+                id: ":3"
             },
-            id: this.accounts,
-        }, (packet, resolve, reject) => {
-            if (packet.val.payload.toLowerCase() === "transfer successful") {
+            id: this.accounts
+        }, (packet, resolve) => {
+            const msg = String(packet.val?.payload || "").toLowerCase();
+
+            if (msg === "transfer successful") {
                 resolve("Success");
             } else {
-                reject(packet.val.payload);
+                resolve(msg || "Transaction failed");
             }
         });
     }

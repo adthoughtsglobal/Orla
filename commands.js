@@ -1,6 +1,19 @@
-var commandinput = document.getElementById("commandinput");
-commandinput.addEventListener("keypress", (event) => {
-    if (event.key == "Enter") {
+var commandinput = document.getElementById("commandinput")
+
+let submitOnRelease = false
+
+commandinput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault()
+        submitOnRelease = true
+    } else {
+        submitOnRelease = false
+    }
+})
+
+commandinput.addEventListener("keyup", (event) => {
+    if (event.key === "Enter" && submitOnRelease) {
+        submitOnRelease = false
         function parse(input) {
             let i = 0
             while (i < input.length && input[i] === ' ') i++
@@ -96,6 +109,10 @@ commandinput.addEventListener("keypress", (event) => {
                 )
                 break;
             }
+            case "cls": {
+                document.getElementById("logspane").innerHTML = "";
+                break;
+            }
             case "help": {
                 document.getElementById("logspane").appendChild(
                     MessageBuilder.action({
@@ -128,13 +145,13 @@ commandinput.addEventListener("keypress", (event) => {
                     MessageBuilder.action({
                         icon: "wand_stars",
                         action: '<div style="display:flex; gap: .5em">' +
-                    '<img class="pfp" src="https://avatars.rotur.dev/' + user + '">'+ 
-                    `<div><strong>${(state.users[user].nickname && state.users[user].nickname != user) ? (state.users[user].nickname + ` (${user})`) : user }</strong><br>
+                            '<img class="pfp" src="https://avatars.rotur.dev/' + user + '">' +
+                            `<div><strong>${(state.users[user].nickname && state.users[user].nickname != user) ? (state.users[user].nickname + ` (${user})`) : user}</strong><br>
                     status: ${state.users[user].status.text + ` (${state.users[user].status?.status})` || state.users[user].status.status}
                     <br>roles: ${state.users[user].roles.toString()}
                     </div>
                     `
-                    +'</div>',
+                            + '</div>',
                         time: ""
                     })
                 )
@@ -189,6 +206,42 @@ commandinput.addEventListener("keypress", (event) => {
                 )
 
             }
+            case "balance": {
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "attach_money",
+                        action: `You have ${roturExtension.getBalance()} rotur credits`
+                    })
+                )
+                break;
+            }
+            case "transfer": {
+                (async () => {
+                    try {
+                        const result = await roturExtension.transferCurrency({
+                            AMOUNT: Number(output.params[1]),
+                            USER: output.params[0]
+                        });
+
+                        document.getElementById("logspane").appendChild(
+                            MessageBuilder.action({
+                                icon: "attach_money",
+                                action: result || "Transaction state is unknown."
+                            })
+                        );
+                    } catch (e) {
+                        document.getElementById("logspane").appendChild(
+                            MessageBuilder.action({
+                                icon: "attach_money",
+                                action: "Transaction failed."
+                            })
+                        );
+                    }
+                })();
+                break;
+            }
         }
+
+        commandinput.value = "";
     }
 })
