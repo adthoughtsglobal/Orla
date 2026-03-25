@@ -341,3 +341,10 @@ img.pfp {
     align-items: center;
     gap: .5em;
 }
+
+.emptyChannel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}

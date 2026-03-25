@@ -1,0 +1,59 @@
+:root {
+    --one: 18, 18, 28;
+    --two: 28, 30, 42;
+    --three: 40, 44, 60;
+    --four: 58, 60, 78;
+    --five: 150, 155, 165;
+
+    --highone: 0, 180, 255;
+    --highlight: 120, 200, 255;
+    --highlighttext: 10, 30, 80;
+
+    --highdark: 10, 30, 80;
+    --hightext: 210, 240, 255;
+}
+
+body {
+    background: radial-gradient(circle at 20% 30%, #1a1a2e, #000);
+    font-family: sans-serif;
+    letter-spacing: 0.03em;
+
+    & * {
+        transition: background .3s cubic-bezier(0.075, 0.82, 0.165, 1);
+    }
+}
+
+.panel {
+    background: var(--bg-alt);
+    border: 1px solid var(--neon-purple);
+    box-shadow: 0 0 12px var(--neon-purple), inset 0 0 8px rgba(157, 78, 221, 0.3);
+    border-radius: 6px;
+}
+
+.inputs {
+    margin: 5px;
+    border-radius: 1em;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.interactive .msg {
+    padding: .7em 1em;
+    padding-left: 4em;
+    position: relative;
+
+    & .pfp {
+        left: 0;
+        position: absolute;
+        transform: scale(2.5);
+        top: 1.5em;
+        left: 1.5em;
+    }
+}
+
+.msg_actions a {
+    font-size: small;
+    background-color: rgb(var(--three));
+    padding: 7px 10px;
+    border-radius: 1em;
+}

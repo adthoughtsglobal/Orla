@@ -23,13 +23,19 @@ let state = {
     set currentChannel(value) {
         this._currentChannel = value;
         lazier.start();
+
+        const ch = this.channelsArray.find(c => c.name === value);
+
         if (ws?.readyState === 1) {
-            ws.send(
-                JSON.stringify({
+            if (ch?.type === "forum") {
+                renderThreads(ch.threads);
+                return;
+            } else {
+                ws.send(JSON.stringify({
                     cmd: "messages_get",
                     channel: value,
-                }),
-            );
+                }));
+            }
         }
     },
     get currentChannel() {
@@ -172,6 +178,9 @@ function attachWsHandlers() {
                 if (data.val) listChannels(data.val);
                 break;
             case "messages_get":
+                if (data.messages) listMessages(data.messages);
+                break;
+            case "thread_messages":
                 if (data.messages) listMessages(data.messages);
                 break;
             case "message_new":
@@ -393,6 +402,12 @@ function listChannels(channelList) {
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
                 active: channel.name === state.currentChannel
+            });
+        } else if (channel.type === "forum") {
+            result.push({
+                name: channel.name || "thread",
+                type: channel.type,
+                threads: channel.threads
             });
         } else if (channel.type === "separator") {
             result.push({ type: "separator" });
@@ -812,64 +827,7 @@ function detectYouTubeEmbeds(messageDiv, text) {
     const urls = [...text.matchAll(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g)].map(m => m[0]);
     for (const u of urls) attachYouTubeEmbed(messageDiv, u);
 }
-let loadedCount = 0;
 
-function makeLoadTrigger(channel, limit) {
-    const t = document.createElement("div");
-    t.id = "load_trigger";
-    t.style.height = "1px";
-    let seen = false;
-    const io = new IntersectionObserver(e => {
-        const v = e[0].isIntersecting;
-        if (v && !seen) {
-            seen = true;
-            setTimeout(() => {
-                state.additionalMessageLoad = true;
-                if (seen) {
-                    ws.send(JSON.stringify({
-                        cmd: "messages_get",
-                        channel,
-                        limit,
-                        start: loadedCount
-                    }));
-                }
-            }, 300);
-        }
-        if (!v) seen = false;
-    });
-    io.observe(t);
-    return t;
-}
-function listMessages(messageList, channel = state.currentChannel, limit = 100) {
-    if (!messageList.length) return;
-
-    state.additionalMessageLoad = false;
-    const chatArea = document.getElementById("interactive_logs");
-    const prev = chatArea.scrollHeight;
-
-    const frag = document.createDocumentFragment();
-    if (chatArea.scrollHeight > chatArea.clientHeight || chatArea.firstChild) {
-        const trigger = makeLoadTrigger(channel, limit);
-        frag.appendChild(trigger);
-    }
-
-    for (const m of messageList) {
-        const n = renderMessage(m);
-        if (n) frag.appendChild(n);
-    }
-
-    const first = chatArea.firstChild;
-    chatArea.insertBefore(frag, first);
-
-    const next = chatArea.scrollHeight;
-    chatArea.scrollTop += next - prev;
-
-    loadedCount += messageList.length;
-
-    lazier.end();
-    attemptResolveAllMissingReplies();
-    setTimeout(lazyRenderMessages, 100);
-}
 const threshold = 100
 let missedWhileScrolledUp = 0
 
@@ -927,7 +885,74 @@ function updateMissedIndicator(count) {
     }
 }
 
+let loadedCount = 0;
+let currentObserver;
+function makeLoadTrigger(channelName, limit) {
+    const channel = state.channelsArray.find(c => c.name === channelName);
+    const t = document.createElement("div");
+    t.style.height = "1px";
+
+    if (currentObserver) currentObserver.disconnect();
+
+    let seen = false;
+    const io = new IntersectionObserver(e => {
+        const v = e[0].isIntersecting;
+        if (v && !seen) {
+            seen = true;
+            setTimeout(() => {
+                if (seen) {
+                    console.log("rendering 888", channel)
+                    ws.send(JSON.stringify({
+                        cmd: "messages_get",
+                        channel,
+                        limit,
+                        start: loadedCount
+                    }));
+                }
+            }, 300);
+        }
+        if (!v) seen = false;
+    });
+
+    io.observe(t);
+    currentObserver = io;
+
+    return t;
+}
+function listMessages(messageList, channel = state.currentChannel, limit = 100) {
+    if (!messageList.length) return;
+
+    console.log("rendering messgaes")
+    state.additionalMessageLoad = false;
+    const chatArea = document.getElementById("interactive_logs");
+    const prev = chatArea.scrollHeight;
+
+    const frag = document.createDocumentFragment();
+    if (chatArea.scrollHeight > chatArea.clientHeight || chatArea.firstChild) {
+        const trigger = makeLoadTrigger(channel, limit);
+        frag.appendChild(trigger);
+    }
+
+    for (const m of messageList) {
+        const n = renderMessage(m);
+        if (n) frag.appendChild(n);
+    }
+
+    const first = chatArea.firstChild;
+    chatArea.insertBefore(frag, first);
+
+    const next = chatArea.scrollHeight;
+    chatArea.scrollTop += next - prev;
+
+    loadedCount += messageList.length;
+
+    lazier.end();
+    attemptResolveAllMissingReplies();
+    setTimeout(lazyRenderMessages, 100);
+}
 function changeChannel(channel) {
+    loadedCount = 0;
+    if (currentObserver) currentObserver.disconnect();
     lastmsgid = null;
     additionalMessageLoad = false;
     state.currentChannel = channel;
@@ -938,6 +963,7 @@ function changeChannel(channel) {
 
     const ch = state.channelsArray.find(c => c.name === channel)
 
+    if (ch.type != "forum") {
     document.getElementById("logspane").appendChild(
         MessageBuilder.action({
             icon: "notifications_active",
@@ -945,9 +971,9 @@ function changeChannel(channel) {
             time: ""
         })
     )
-
-    const chatArea = document.getElementById("interactive_logs");
-    if (chatArea) chatArea.innerHTML = "";
+        const chatArea = document.getElementById("interactive_logs");
+        if (chatArea) chatArea.innerHTML = "";
+    }
 
     if (state.unread[channel]) {
         state.unread[channel] = 0;

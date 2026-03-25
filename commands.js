@@ -96,7 +96,7 @@ commandinput.addEventListener("keyup", (event) => {
                 }
 
                 changeChannel(target)
-                break
+                break;
             }
             case "online": {
                 document.getElementById("logspane").appendChild(
@@ -111,6 +111,13 @@ commandinput.addEventListener("keyup", (event) => {
             }
             case "cls": {
                 document.getElementById("logspane").innerHTML = "";
+                break;
+            }
+            case "theme": {
+                const link = document.createElement('link')
+                link.rel = 'stylesheet'
+                link.href = 'themes/' + output.params[0] + '.css'
+                document.head.appendChild(link)
                 break;
             }
             case "help": {
@@ -204,7 +211,7 @@ commandinput.addEventListener("keyup", (event) => {
                     '<pre style="margin:0; padding-left:12px; white-space:pre-wrap; word-break:break-word;">' + infoText + '</pre>' +
                     '</div>'
                 )
-
+                break;
             }
             case "balance": {
                 document.getElementById("logspane").appendChild(
