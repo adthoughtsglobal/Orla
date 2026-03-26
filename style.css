@@ -1,3 +1,7 @@
+html {
+    scroll-behavior: smooth;
+}
+
 :root {
     --one: 25, 25, 26;
     --two: 35, 36, 37;
@@ -141,6 +145,7 @@ body {
         display: flex;
         flex-direction: row;
         gap: .7em;
+        flex-wrap: wrap;
 
         &>.fill {
             flex: 1;
@@ -198,14 +203,22 @@ div#interactive_logs {
     flex-grow: 2;
 }
 
+@keyframes pop {
+    0% {
+        transform: translateY(10px);
+    }
+}
+
 #logspane {
     flex: 1;
+    overflow-y: auto;
 
     & .msg {
         display: flex;
         flex-direction: row;
         max-width: 100%;
         justify-content: space-between;
+        animation: pop .5s cubic-bezier(0.075, 0.82, 0.165, 1);
 
         &>.data {
             display: inline-flex;

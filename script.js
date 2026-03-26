@@ -20,6 +20,8 @@ class MessageBuilder {
         const name = document.createElement("div")
         name.className = "inline bold"
         name.textContent = username
+        name.style.color = state.users[username].color;
+        name.addEventListener("click", ()=> {runcmd(`profile ${username.toLowerCase()}`)})
 
         const t = document.createElement("div")
         t.className = "time"

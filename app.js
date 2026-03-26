@@ -352,6 +352,14 @@ function attachWsHandlers() {
                 break;
             }
             case 'message_react_add': {
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "add_reaction",
+                        username: data.from,
+                        action: "reacted " + data.emoji + " to <strong>a_message</strong> in " + data.channel,
+                        time: ""
+                    })
+                )
                 const message = state.messages[data.id];
                 if (!message) break;
 
@@ -362,6 +370,7 @@ function attachWsHandlers() {
                 if (!message.reactions[data.emoji].includes(data.from)) {
                     message.reactions[data.emoji].push(data.from);
                 }
+
 
                 if (data.channel === state.currentChannel) {
                     updateMessageReactions(data.id);
@@ -389,8 +398,10 @@ function attachWsHandlers() {
             case "error":
                 showError(data.val || data.message || "Unknown error");
                 break;
+            case "ping":
+                break;
             default:
-                console.log("Unhandled", data);
+                say("Unhandled", data);
         }
     };
     ws.onerror = (e) => showError("WebSocket error");

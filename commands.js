@@ -11,14 +11,15 @@ commandinput.addEventListener("keydown", (event) => {
     }
 })
 
-commandinput.addEventListener("keyup", (event) => {
+commandinput.addEventListener("keyup", async (event) => {
     if (event.key === "Enter" && submitOnRelease) {
         submitOnRelease = false
-        processCommand();
+        await processCommand();
+        document.getElementById("logspane").scrollTop = document.getElementById("logspane").scrollHeight;
     }
 })
 
-function processCommand() {
+async function processCommand() {
     function parse(input) {
         let i = 0
         while (i < input.length && input[i] === ' ') i++
@@ -213,9 +214,9 @@ function processCommand() {
                     const el = MessageBuilder.action({
                         icon: "wand_stars",
                         action: `
-<div style="display:flex; gap: .5em">
-    <div>${lines.join("<br>")}</div>
+<div style="display:flex; gap: .5em; width: 100%;">
     <img class="pfp" src="https://avatars.rotur.dev/${user}">
+    <div style="flex: 1">${lines.join("<br>")}</div>
 </div>
 `
                         ,
@@ -331,7 +332,19 @@ function processCommand() {
     commandinput.value = "";
 }
 
-function runcmd(cmd) {
+async function runcmd(cmd) {
+    const chatArea = document.getElementById("logspane");
+    const atBottom = shouldAutoScroll(chatArea);
+
     commandinput.value = cmd;
-    processCommand();
-} 
+    await processCommand();
+
+    if (atBottom) {
+        setTimeout(() => {
+            chatArea.scrollTo({
+                top: chatArea.scrollHeight,
+                behavior: "smooth"
+            });
+        }, 1000);
+    }
+}
