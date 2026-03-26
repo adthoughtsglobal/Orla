@@ -1,5 +1,8 @@
-- listenerctl [listenerID] [boolean]: displays or manages listeners (filter logs)
+# DONE
 - transfer [user] [amount]: sends credits
+- theme [url]
+
+- listenerctl [listenerID] [boolean]: displays or manages listeners (filter logs)
 - request [user] [amount]: requests credits
 
 - status [set] [idle/online/dnd/invisible] [string]
@@ -8,7 +11,6 @@
 - keys [set] [key] [value]
 - keys [remove] [key]
 
-- theme [url]
 - setting [ping_sfx]
 
 AutoResponder
@@ -34,25 +36,25 @@ moonshot
 Lists pane: lists stuff like members, message search results, pinned messages, 
 
 To Do
-- reply
-- message md formatting
 - copy message id
-- list threads messages
+- mentions and pings
+- message md formatting
+- channel links
+- role colors
+- reply
 - message in threads
 - add and remove reactions
 - per user message grouping
-- role colors
 - attatchments
-- mentions and pings
-- channel links
-- pinned messages
-- message searching
-- server bar and server switching
 - rate limit handling
 - dms server
 - dms by default
-- timeouts handling
+- server bar and server switching
 - server leaving and management
+- server discovery
+- pinned messages
+- message searching
+- timeouts handling
 - voice channels
 - media servers
-- server discovery
+- list threads messages [done]
