@@ -1712,7 +1712,7 @@ async function roturTWEventCall(data, payload) {
         if (iframe.contentWindow?.userKeysUpdate)
             iframe.contentWindow.userKeysUpdate();
     } else if (data == "roturEXT_whenDisconnected") {
-        await say("Disconnected, click ok to reconnect")
+        await say("Disconnected, automatically reconnecting...")
         attemptConnection();
     } else if (data == "roturEXT_whenMailReceived") {
         toast("✉️ New: " + payload.info.title)

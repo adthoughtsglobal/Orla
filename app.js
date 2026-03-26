@@ -27,9 +27,18 @@ let state = {
         const ch = this.channelsArray.find(c => c.name === value);
 
         if (ws?.readyState === 1) {
-            if (ch?.type === "forum") {
+            if (ch?.type === "forum" && isNaN(this._currentThread)) {
                 renderThreads(ch.threads);
                 return;
+            }
+
+            if (this._currentThread !== undefined && ch?.threads?.[this._currentThread]) {
+                const thread = ch.threads[this._currentThread];
+                ws.send(JSON.stringify({
+                    cmd: "thread_messages",
+                    channel: value,
+                    thread_id: thread.id
+                }));
             } else {
                 ws.send(JSON.stringify({
                     cmd: "messages_get",
@@ -922,7 +931,7 @@ function makeLoadTrigger(channelName, limit) {
 function listMessages(messageList, channel = state.currentChannel, limit = 100) {
     if (!messageList.length) return;
 
-    console.log("rendering messgaes")
+    console.log("rendering messgaes", messageList)
     state.additionalMessageLoad = false;
     const chatArea = document.getElementById("interactive_logs");
     const prev = chatArea.scrollHeight;
@@ -964,13 +973,13 @@ function changeChannel(channel) {
     const ch = state.channelsArray.find(c => c.name === channel)
 
     if (ch.type != "forum") {
-    document.getElementById("logspane").appendChild(
-        MessageBuilder.action({
-            icon: "notifications_active",
-            action: ch ? ch.desc : "Listening to " + channel,
-            time: ""
-        })
-    )
+        document.getElementById("logspane").appendChild(
+            MessageBuilder.action({
+                icon: "notifications_active",
+                action: ch ? ch.desc : "Listening to " + channel,
+                time: ""
+            })
+        )
         const chatArea = document.getElementById("interactive_logs");
         if (chatArea) chatArea.innerHTML = "";
     }
