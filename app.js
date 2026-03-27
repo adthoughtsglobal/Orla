@@ -262,40 +262,26 @@ function attachWsHandlers() {
                     state.typingUsers[channel] = new Map();
                 }
 
+                const typingMap = state.typingUsers[channel];
+
+                const now = Date.now();
+
+                typingMap.set(user, {
+                    startedAt: now,
+                    expireAt: now + 5000
+                });
+
                 if (channel === state.currentChannel) {
-                    document.getElementById("logspane").appendChild(
-                        MessageBuilder.action({
-                            icon: "keyboard_keys",
-                            username: user,
-                            action: "is typing...",
-                            time: ""
-                        })
-                    )
-                    const typingMap = state.typingUsers[channel];
-
-                    const expireAt = Date.now() + 5000;
-                    typingMap.set(user, expireAt);
-
                     updateTypingIndicator();
-
-                    setTimeout(() => {
-                        if (typingMap.get(user) <= Date.now()) {
-                            typingMap.delete(user);
-                            state.typingUsers[channel] = typingMap;
-                            updateTypingIndicator();
-                        }
-                    }, 5000);
-                } else {
-                    document.getElementById("logspane").appendChild(
-                        MessageBuilder.action({
-                            icon: "keyboard_keys",
-                            username: user,
-                            action: "is typing in #" + channel,
-                            time: ""
-                        })
-                    )
                 }
 
+                setTimeout(() => {
+                    const entry = typingMap.get(user);
+                    if (entry && entry.expireAt <= Date.now()) {
+                        typingMap.delete(user);
+                        updateTypingIndicator();
+                    }
+                }, 5000);
 
                 break;
             case "users_list": {
@@ -1179,42 +1165,53 @@ async function changeServer() {
     greenflag();
 }
 
-
-function updateTypingIndicator() {
-    const typingEl = document.getElementById("typing");
-    if (!typingEl) return;
-
-    const channel = state.currentChannel;
-    if (!channel) return;
-
-    const typingMap = state.typingUsers[channel];
-    if (!typingMap) return;
-
-    const now = Date.now();
-    for (const [user, expiry] of typingMap) {
-        if (expiry < now) typingMap.delete(user);
+function formatTyping(users) {
+    if (users.length === 1) {
+        const u = users[0];
+        return `${u.user} is typing (${u.elapsed}s)`;
     }
 
-    const users = [...typingMap.keys()];
+    if (users.length === 2) {
+        return `${users[0].user} (${users[0].elapsed}s) and ${users[1].user} (${users[1].elapsed}s) are typing`;
+    }
 
-    if (users.length === 0) {
-        typingEl.style.opacity = "0";
-        setTimeout(typingEl.textContent = "...", 500)
+    const first = users[0];
+    const rest = users.length - 1;
+    return `${first.user} (${first.elapsed}s) and ${rest} others are typing`;
+}
+let dotState = 0;
+
+function getDots() {
+    dotState = (dotState + 1) % 3;
+    return ".".repeat(dotState + 1);
+}
+function updateTypingIndicator() {
+    const container = document.getElementById("typing-indicator");
+    const typingMap = state.typingUsers[state.currentChannel];
+
+    if (!typingMap || typingMap.size === 0) {
+        container.textContent = "";
         return;
     }
 
-    typingEl.style.opacity = ".8";
+    const now = Date.now();
 
-    let text = "";
-    if (users.length === 1) {
-        text = `${users[0]} is typing...`;
-    } else if (users.length === 2) {
-        text = `${users[0]} and ${users[1]} are typing...`;
-    } else {
-        text = `${users.length} people are typing...`;
+    const activeUsers = Array.from(typingMap.entries())
+        .filter(([_, v]) => v.expireAt > now)
+        .map(([user, v]) => ({
+            user,
+            elapsed: Math.floor((now - v.startedAt) / 1000),
+            startedAt: v.startedAt
+        }))
+        .sort((a, b) => a.startedAt - b.startedAt);
+
+    if (activeUsers.length === 0) {
+        container.textContent = "";
+        return;
     }
 
-    typingEl.innerHTML = `<div class="loader2"></div>` + escapeHTML(text);
+    const text = formatTyping(activeUsers);
+    container.textContent = text + getDots();
 }
 function handleMessageNotification() {
 
@@ -1226,67 +1223,8 @@ function sendTyping() {
 }
 
 function greenflag() {
-    // document.getElementById("usernameLabel").innerText = roturExtension.user.username;
-    // document.getElementById("userAvatar").src = `https://avatars.rotur.dev/${encodeURIComponent(roturExtension.user.username)}`;
-    // fetch("emojis.json").then(async r => {
-    // try {
-    //     if (!r.ok) {
-    //         console.warn("Failed to get emojis!")
-    //         emojis = [];
-    //     }
-
-    //     emojis = await r.json();
-    // } catch (error) {
-
-    // }
     connectWebSocket();
-    // const container = document.getElementById("emojiscrollable");
-    // const frag = document.createDocumentFragment();
-
-    // for (const emoji of emojis) {
-    //     if (!emoji.emoji) continue;
-    //     const x = document.createElement("div");
-    //     x.dataset.char = emoji.emoji;
-    //     x.classList.add("single_emoji");
-    //     x.title = emoji.label.replaceAll(" ", "_");
-    //     x.onclick = () => {
-    //         document.getElementById("mainTxtAr").value += `:${x.title}:`
-    //     }
-    //     frag.appendChild(x);
-    // }
-    // container.appendChild(frag);
-
-    // const obs = new IntersectionObserver(entries => {
-    //     for (const e of entries) {
-    //         if (e.isIntersecting) {
-    //             const el = e.target;
-    //             el.innerText = el.dataset.char;
-    //             obs.unobserve(el);
-    //         }
-    //     }
-    // });
-
-    // document.querySelectorAll(".single_emoji").forEach(el => obs.observe(el));
-    // const input = document.getElementById("emojiSearch");
-
-    // const match = (text, q) => {
-    //     let i = 0, j = 0;
-    //     while (i < text.length && j < q.length) {
-    //         if (text[i] === q[j]) j++;
-    //         i++;
-    //     }
-    //     return j === q.length;
-    // };
-
-    // input.addEventListener("input", e => {
-    //     const q = e.target.value.toLowerCase();
-    //     document.querySelectorAll(".single_emoji").forEach(el => {
-    //         const t = (el.title + el.dataset.char).toLowerCase();
-    //         el.style.display = match(t, q) ? "" : "none";
-    //     });
-    // });
-
-    // })
+    setInterval(updateTypingIndicator, 1000);
 }
 
 function toggleEmojiMenu() {

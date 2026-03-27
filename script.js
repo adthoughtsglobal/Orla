@@ -20,7 +20,7 @@ class MessageBuilder {
         const name = document.createElement("div")
         name.className = "inline bold"
         name.textContent = username
-        name.style.color = state.users[username].color;
+        name.style.color = state.users[username].color
         name.addEventListener("click", ()=> {runcmd(`profile ${username.toLowerCase()}`)})
 
         const t = document.createElement("div")
@@ -53,7 +53,7 @@ class MessageBuilder {
         return root
     }
 
-    static action({ icon, username, action }) {
+    static action({ icon, username, action, expiry }) {
         const last = this.lastAction
 
         if (
@@ -65,6 +65,15 @@ class MessageBuilder {
             last.count++
             last.timeNode.textContent = this.now()
             last.actNode.textContent = `${action} x${last.count}`
+
+            if (last.timer) clearTimeout(last.timer)
+            if (expiry) {
+                last.timer = setTimeout(() => {
+                    last.root.remove()
+                    if (this.lastAction === last) this.lastAction = null
+                }, expiry)
+            }
+
             return last.root
         }
 
@@ -96,6 +105,14 @@ class MessageBuilder {
 
         root.append(data, t)
 
+        let timer = null
+        if (expiry) {
+            timer = setTimeout(() => {
+                root.remove()
+                if (this.lastAction && this.lastAction.root === root) this.lastAction = null
+            }, expiry)
+        }
+
         this.lastAction = {
             icon,
             username,
@@ -103,7 +120,8 @@ class MessageBuilder {
             root,
             timeNode: t,
             actNode: act,
-            count: 1
+            count: 1,
+            timer
         }
 
         return root

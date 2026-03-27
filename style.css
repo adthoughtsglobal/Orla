@@ -361,3 +361,7 @@ img.pfp {
     align-items: center;
     height: 100%;
 }
+
+#typing-indicator {
+    padding: .3em 1em;
+}
