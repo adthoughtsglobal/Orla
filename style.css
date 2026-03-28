@@ -365,3 +365,30 @@ img.pfp {
 #typing-indicator {
     padding: .3em 1em;
 }
+
+.reply-excerpt {
+    display: flex;
+    flex-direction: row;
+    gap: .5em;
+}
+
+.rplarrow {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    border-left: 1px solid;
+    border-top: 1px solid;
+    border-color: rgb(var(--four));
+    transform: translate(7px, 6px);
+    margin-right: 5px;
+}
+img.msg_img {
+    max-height: 13em;
+    max-width: 500px;
+    margin: .5em 0;
+    border: 1px solid rgb(var(--three));
+}
+
+.msg.connected .data {
+    display: none;
+}

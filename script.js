@@ -1,59 +1,175 @@
-class MessageBuilder {
-    static lastAction = null
-
+class TimeUtil {
     static now() {
         return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
+}
+class MessageGrouper {
+    static shouldConnect(prev, curr) {
+        if (!prev || !curr) return false
+        if (prev.user !== curr.user) return false
+        if (curr.reply_to) return false
 
-    static message({ avatar, username, text, message }) {
-        const root = document.createElement("div")
-        root.className = "msg"
+        const t1 = (prev.timestamp || 0) * 1000
+        const t2 = (curr.timestamp || 0) * 1000
+
+        return Math.abs(t2 - t1) < 5 * 60 * 1000
+    }
+}
+
+class ElementFactory {
+    static div(cls, text) {
+        const el = document.createElement("div")
+        if (cls) el.className = cls
+        if (text !== undefined) el.textContent = text
+        return el
+    }
+
+    static img(cls, src) {
+        const el = document.createElement("img")
+        el.className = cls
+        el.src = src
+        return el
+    }
+
+    static link(text) {
+        const el = document.createElement("a")
+        el.textContent = text
+        return el
+    }
+}
+
+class ReplyBuilder {
+    static build(message) {
+        if (!message.reply_to) return null
+
+        let replyId = null
+        let hintedUser = ""
+
+        if (typeof message.reply_to === "object") {
+            replyId = message.reply_to.id || null
+            hintedUser = message.reply_to.user || ""
+        }
+
+        if (!replyId) return null
+
+        const ref =
+            message.reply_to_message ||
+            state.messages[replyId] ||
+            findMessageById(replyId)
+
+        const el = ElementFactory.div("reply-excerpt")
+        el.dataset.ref = replyId
+
+        const arrow = ElementFactory.div("rplarrow")
+        el.appendChild(arrow)
+
+        if (!ref) {
+            el.classList.add("missing")
+
+            const text = document.createElement("span")
+
+            if (hintedUser) {
+                const user = document.createElement("span")
+                user.className = "reply-user"
+                user.style.color = getUserColor(hintedUser)
+                user.textContent = "@" + hintedUser
+
+                text.textContent = "Replying to "
+                el.append(text, user)
+            } else {
+                text.textContent = "Replying to unknown message"
+                el.appendChild(text)
+            }
+
+            return el
+        }
+
+        if (!state.messages[replyId]) state.messages[replyId] = ref
+
+        const user = document.createElement("span")
+        user.className = "reply-user"
+        user.style.color = getUserColor(ref.user || hintedUser || "")
+        user.textContent = "@" + (ref.user || hintedUser || "unknown")
+
+        const preview = document.createElement("span")
+        preview.className = "reply-preview"
+        preview.textContent = stripHtml(ref.content || "").slice(0, 120)
+
+        el.append(user, preview)
+        return el
+    }
+}
+
+class MessageActions {
+    static build() {
+        const actions = ElementFactory.div("msg_actions")
+        actions.append(
+            ElementFactory.link("reply"),
+            ElementFactory.link("delete"),
+            ElementFactory.link("copy_ID")
+        )
+        return actions
+    }
+}
+class MessageBuilder {
+    static message({ avatar, username, timeStr, text, message, prevMessage }) {
+        const connected = MessageGrouper.shouldConnect(prevMessage, message)
+
+        const root = ElementFactory.div("msg")
+        if (connected) root.classList.add("connected")
         root.setAttribute("data-id", message.id)
 
-        const data = document.createElement("div")
-        data.className = "data"
+        const data = ElementFactory.div("data")
 
-        const img = document.createElement("img")
-        img.className = "pfp"
-        img.src = avatar
+        if (!connected) {
+            const img = ElementFactory.img("pfp", avatar)
 
-        const name = document.createElement("div")
-        name.className = "inline bold"
-        name.textContent = username
-        name.style.color = state.users[username].color
-        name.addEventListener("click", ()=> {runcmd(`profile ${username.toLowerCase()}`)})
+            const name = ElementFactory.div("inline bold", username)
+            name.style.color = state.users[username].color
+            name.addEventListener("click", () => {
+                runcmd(`profile ${username.toLowerCase()}`)
+            })
 
-        const t = document.createElement("div")
-        t.className = "time"
-        t.textContent = this.now()
+            const time = ElementFactory.div("time", timeStr)
+            const fill = ElementFactory.div("fill")
+            const actions = MessageActions.build()
 
-        const fill = document.createElement("div")
-        fill.className = "fill"
+            data.append(img, name, time, fill, actions)
+        } else {
+            const time = ElementFactory.div("time", timeStr)
+            data.appendChild(time)
+        }
 
-        const actions = document.createElement("div")
-        actions.className = "msg_actions"
 
-        const reply = document.createElement("a")
-        reply.textContent = "reply"
+        let msg = null
+        if (text && text.trim()) {
+            msg = ElementFactory.div("inline p")
+            const parsed = ContentParser.parse(text)
+            msg.appendChild(parsed)
+        }
 
-        const del = document.createElement("a")
-        del.textContent = "delete"
+        const reply = ReplyBuilder.build(message)
+        const attachments = AttachmentBuilder.build(message.attachments)
 
-        const copy = document.createElement("a")
-        copy.textContent = "copy_ID"
+        root.append(
+            reply || "",
+            data,
+            msg || "",
+            attachments || ""
+        )
 
-        actions.append(reply, del, copy)
-        data.append(img, name, t, fill, actions)
-
-        const msg = document.createElement("div")
-        msg.className = "inline p"
-        msg.innerHTML = text
-
-        root.append(data, msg)
         return root
     }
 
-    static action({ icon, username, action, expiry }) {
+    static action(args) {
+        return ActionBuilder.build(args)
+    }
+}
+
+class ActionBuilder {
+    static lastAction = null
+
+    static build({ icon, username, action, expiry }) {
         const last = this.lastAction
 
         if (
@@ -63,7 +179,7 @@ class MessageBuilder {
             last.action === action
         ) {
             last.count++
-            last.timeNode.textContent = this.now()
+            last.timeNode.textContent = TimeUtil.now()
             last.actNode.textContent = `${action} x${last.count}`
 
             if (last.timer) clearTimeout(last.timer)
@@ -77,33 +193,22 @@ class MessageBuilder {
             return last.root
         }
 
-        const root = document.createElement("div")
-        root.className = "msg"
+        const root = ElementFactory.div("msg")
+        const data = ElementFactory.div("data")
 
-        const data = document.createElement("div")
-        data.className = "data"
-
-        const ic = document.createElement("div")
-        ic.className = "icon"
-        ic.textContent = icon
-
-        const name = document.createElement("div")
-        name.className = "inline bold"
+        const ic = ElementFactory.div("icon", icon)
+        const name = ElementFactory.div("inline bold")
         name.innerHTML = username
 
-        const act = document.createElement("div")
-        act.className = "inline"
+        const act = ElementFactory.div("inline")
         act.innerHTML = action
 
         icon && data.appendChild(ic)
         username && data.appendChild(name)
         action && data.appendChild(act)
 
-        const t = document.createElement("div")
-        t.className = "time"
-        t.textContent = this.now()
-
-        root.append(data, t)
+        const time = ElementFactory.div("time", TimeUtil.now())
+        root.append(data, time)
 
         let timer = null
         if (expiry) {
@@ -118,13 +223,138 @@ class MessageBuilder {
             username,
             action,
             root,
-            timeNode: t,
+            timeNode: time,
             actNode: act,
             count: 1,
             timer
         }
 
         return root
+    }
+}
+class ContentParser {
+    static imageRegex = /(https?:\/\/[^\s]+)/gi
+
+    static parse(text) {
+        const container = document.createElement("div")
+        container.innerHTML = text
+        this.replaceTextLinks(container)
+        return container
+    }
+
+    static isLikelyImage(url) {
+        return /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?|$)/i.test(url)
+    }
+
+    static createImage(url) {
+        const img = document.createElement("img")
+        img.src = url
+        img.className = "msg_img"
+        img.loading = "lazy"
+        return img
+    }
+
+    static async probe(url) {
+        return new Promise(res => {
+            const img = new Image()
+            img.onload = () => res(true)
+            img.onerror = () => res(false)
+            img.src = url
+        })
+    }
+
+    static replaceTextLinks(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        const nodes = []
+        while (walker.nextNode()) nodes.push(walker.currentNode)
+
+        nodes.forEach(node => {
+            const matches = [...node.nodeValue.matchAll(this.imageRegex)]
+            if (!matches.length) return
+
+            const frag = document.createDocumentFragment()
+            let lastIndex = 0
+
+            matches.forEach(match => {
+                const url = match[0]
+                const start = match.index
+                const end = start + url.length
+
+                if (start > lastIndex) {
+                    frag.appendChild(document.createTextNode(node.nodeValue.slice(lastIndex, start)))
+                }
+
+                if (this.isLikelyImage(url)) {
+                    frag.appendChild(this.createImage(url))
+                } else {
+                    const a = document.createElement("a")
+                    a.href = url
+                    a.textContent = url
+
+                    this.probe(url).then(ok => {
+                        if (ok && a.parentNode) {
+                            a.replaceWith(this.createImage(url))
+                        }
+                    })
+
+                    frag.appendChild(a)
+                }
+
+                lastIndex = end
+            })
+
+            if (lastIndex < node.nodeValue.length) {
+                frag.appendChild(document.createTextNode(node.nodeValue.slice(lastIndex)))
+            }
+
+            node.replaceWith(frag)
+        })
+
+        const links = root.querySelectorAll("a[href]")
+        links.forEach(a => {
+            const url = a.href
+
+            if (this.isLikelyImage(url)) {
+                a.replaceWith(this.createImage(url))
+            } else {
+                this.probe(url).then(ok => {
+                    if (ok && a.parentNode) {
+                        a.replaceWith(this.createImage(url))
+                    }
+                })
+            }
+        })
+    }
+}
+
+class AttachmentBuilder {
+    static isImage(att) {
+        return att.mime_type && att.mime_type.startsWith("image/")
+    }
+
+    static build(attachments) {
+        if (!attachments || !attachments.length) return null
+
+        const wrap = document.createElement("div")
+        wrap.className = "attachments"
+
+        attachments.forEach(att => {
+            if (this.isImage(att)) {
+                const img = document.createElement("img")
+                img.src = att.url
+                img.className = "msg_img"
+                img.loading = "lazy"
+                wrap.appendChild(img)
+            } else {
+                const a = document.createElement("a")
+                a.href = att.url
+                a.textContent = att.name || "attachment"
+                a.target = "_blank"
+                wrap.appendChild(a)
+            }
+        })
+
+        return wrap
     }
 }
 const tooltip = document.createElement("div")
@@ -145,23 +375,23 @@ document.body.appendChild(tooltip)
 let active = null
 
 document.addEventListener("mouseover", e => {
-  const el = e.target.closest("[data-tooltip]")
-  if (!el) return
-  active = el
-  tooltip.textContent = el.getAttribute("data-tooltip")
-  tooltip.style.opacity = "1"
+    const el = e.target.closest("[data-tooltip]")
+    if (!el) return
+    active = el
+    tooltip.textContent = el.getAttribute("data-tooltip")
+    tooltip.style.opacity = "1"
 })
 
 document.addEventListener("mousemove", e => {
-  if (!active) return
-  tooltip.style.left = e.clientX + "px"
-  tooltip.style.top = e.clientY + "px"
+    if (!active) return
+    tooltip.style.left = e.clientX + "px"
+    tooltip.style.top = e.clientY + "px"
 })
 
 document.addEventListener("mouseout", e => {
-  if (!active) return
-  if (!e.relatedTarget || !active.contains(e.relatedTarget)) {
-    tooltip.style.opacity = "0"
-    active = null
-  }
+    if (!active) return
+    if (!e.relatedTarget || !active.contains(e.relatedTarget)) {
+        tooltip.style.opacity = "0"
+        active = null
+    }
 })

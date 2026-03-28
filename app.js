@@ -626,20 +626,23 @@ function renderReplyExcerpt(message) {
 
 function findMessageById(id) {
     if (!id) return null;
+
     if (state.messages[id]) return state.messages[id];
-    const msgNode = document.querySelector(
-        `.message[data-id="${CSS.escape(id)}"]`,
-    );
-    if (msgNode) {
-        const user =
-            msgNode.getAttribute("data-user") ||
-            msgNode.querySelector(".meta strong")?.textContent ||
-            "";
-        const contentEl = msgNode.querySelector(".content");
-        const content = contentEl?.innerText || contentEl?.textContent || "";
-        return { id, user, content };
-    }
-    return null;
+
+    const msgNode = document.querySelector(`.msg[data-id="${CSS.escape(id)}"]`);
+    if (!msgNode) return null;
+
+    const userEl = msgNode.querySelector(".data .bold");
+    const contentEl = msgNode.querySelector(".inline.p");
+
+    const user = userEl?.textContent || "";
+    const content = contentEl?.innerText || contentEl?.textContent || "";
+
+    const ref = { id, user, content };
+
+    state.messages[id] = ref;
+
+    return ref;
 }
 
 function attemptResolveAllMissingReplies() {
@@ -721,9 +724,10 @@ function renderVisible(message, prevmsg) {
     const msgEl = MessageBuilder.message({
         avatar,
         username: message.user,
-        time: timeStr,
+        timeStr: timeStr,
         text,
-        message
+        message,
+        prevMessage: prevmsg
     });
     setTimeout(() => renderReactions(message, msgEl), 0);
 
