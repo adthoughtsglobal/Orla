@@ -50,43 +50,8 @@ class RoturExtension {
         this.outdated = false;
 
         this.callJson = {};
-
-        fetch("https://raw.githubusercontent.com/Mistium/Origin-OS/main/Resources/info.json")
-            .then((response) => {
-                if (response.ok) return response.json();
-                else throw new Error('Network response was not ok');
-            })
-            .then((data) => {
-                this.accounts = data.name;
-                this.server = data.server;
-            })
-            .catch((error) => {
-                this.accounts = "sys.-origin";
-                this.server = "wss://rotur.mistium.com";
-            });
-
-        this._initializeBadges(); // Start fetching badges
-
-    }
-
-    async _initializeBadges() {
-        await this._getBadges(); // Wait for the fetch operation to complete
-    }
-
-    async _getBadges() {
-        try {
-            const response = await fetch("https://raw.githubusercontent.com/RoturTW/Badges/main/badges.json");
-            if (!response.ok) throw new Error('Network response was not ok');
-
-            const data = await response.json();
-            this.badges = data;
-        } catch (error) {
-            this.badges = [];
-        }
-    }
-
-    openUpdate() {
-        window.open("https://extensions.mistium.com/featured/rotur.js");
+        this.accounts = "sys-rotur";
+        this.server = "wss://rotur.mistium.com";
     }
 
     // main functions
@@ -1262,7 +1227,7 @@ class RoturExtension {
     transferCurrency(args) {
         if (!this.is_connected) return "Not Connected";
         if (!this.authenticated) return "Not Logged In";
-console.log(args);
+        console.log(args);
         return this.handlePromise({
             cmd: "pmsg",
             val: {
@@ -1651,7 +1616,13 @@ console.log(args);
 var roturExtension = null;
 let localroturdata = localStorage.getItem("orion-rotur");
 document.getElementById("fullloader").style.display = "flex";
+let lastAttempt = 0;
+
 async function attemptConnection() {
+    const now = Date.now();
+    if (now - lastAttempt < 2000) return;
+    lastAttempt = now;
+
     if (roturExtension?.is_connected) {
         return true;
     } else if (!roturExtension) {
@@ -1712,7 +1683,7 @@ async function roturTWEventCall(data, payload) {
         if (iframe.contentWindow?.userKeysUpdate)
             iframe.contentWindow.userKeysUpdate();
     } else if (data == "roturEXT_whenDisconnected") {
-        await say("Disconnected, automatically reconnecting...")
+        say("Trying to connect to "+roturExtension.server+"...")
         attemptConnection();
     } else if (data == "roturEXT_whenMailReceived") {
         toast("✉️ New: " + payload.info.title)

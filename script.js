@@ -99,15 +99,30 @@ class ReplyBuilder {
         return el
     }
 }
-
 class MessageActions {
-    static build() {
+    static build(message) {
         const actions = ElementFactory.div("msg_actions")
-        actions.append(
-            ElementFactory.link("reply"),
-            ElementFactory.link("delete"),
-            ElementFactory.link("copy_ID")
-        )
+
+        const reply = ElementFactory.link("reply")
+        reply.addEventListener("click", () => {
+            runcmd(`reply ${message.id}`)
+        })
+
+        const del = ElementFactory.link("delete")
+        del.addEventListener("click", () => {
+            runcmd(`delete ${message.id}`)
+        })
+
+        const copy = ElementFactory.link("copy_id")
+        copy.addEventListener("click", () => {
+            copy.innerText = "copied"
+            navigator.clipboard.writeText(message.id)
+            setTimeout(() => {
+                copy.innerText = "copy_id"
+            }, 2000)
+        })
+
+        actions.append(reply, del, copy)
         return actions
     }
 }
@@ -132,7 +147,7 @@ class MessageBuilder {
 
             const time = ElementFactory.div("time", timeStr)
             const fill = ElementFactory.div("fill")
-            const actions = MessageActions.build()
+            const actions = MessageActions.build(message)
 
             data.append(img, name, time, fill, actions)
         } else {

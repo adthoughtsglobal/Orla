@@ -378,7 +378,7 @@ img.pfp {
     border-radius: 3px;
     border-left: 1px solid;
     border-top: 1px solid;
-    border-color: rgb(var(--four));
+    border-color: rgb(var(--five));
     transform: translate(7px, 6px);
     margin-right: 5px;
 }
