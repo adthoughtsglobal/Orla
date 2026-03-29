@@ -409,3 +409,14 @@ document.addEventListener("mouseout", e => {
         active = null
     }
 })
+
+function attachAutoResize(textarea, max = 300, offset = 32) {
+    if (!textarea || textarea._autoResizeAttached) return;
+
+    textarea.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight - offset, max) + "px";
+    });
+
+    textarea._autoResizeAttached = true;
+}

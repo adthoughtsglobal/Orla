@@ -96,6 +96,12 @@ body {
         'opsz' 24
 }
 
+textarea {
+    resize: none;
+    overflow-y: auto;
+    max-height: 40vh;
+}
+
 .pane {
     min-width: 200px;
     box-shadow: 1px 0 0 rgb(var(--two));
@@ -235,6 +241,9 @@ div#interactive_logs {
             & .overflowable {
                 overflow-x: auto;
                 width: fit-content;
+                &>* {
+                    width: fit-content;
+                }
             }
 
             &>* {

@@ -2,6 +2,8 @@ var commandinput = document.getElementById("commandinput")
 
 let submitOnRelease = false
 
+attachAutoResize(commandinput);
+
 commandinput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
@@ -267,12 +269,19 @@ async function processCommand() {
 
             const logoText = logo.join("\n")
 
+            const formatEntry = (k, v, width) => {
+                const lines = String(v).split("\n")
+                const first = pad(k + ":", width) + lines[0]
+                const rest = lines.slice(1).map(line => " ".repeat(width) + line)
+                return [first, ...rest].join("\n")
+            }
+
             const infoText = entries
-                .map(([k, v]) => pad(k + ":", maxKey + 1) + v)
+                .map(([k, v]) => formatEntry(k, v, maxKey + 1))
                 .join("\n")
 
             notify(
-                '<div style="display:flex; font-family:monospace;">' +
+                '<div class="overflowable" style="display:flex; font-family:monospace;">' +
                 '<pre style="margin:0; white-space:pre; line-height:1;">' + logoText + '</pre>' +
                 '<pre style="margin:0; padding-left:12px; white-space:pre-wrap; word-break:break-word;">' + infoText + '</pre>' +
                 '</div>'

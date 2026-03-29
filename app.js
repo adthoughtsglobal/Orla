@@ -151,16 +151,13 @@ function attachWsHandlers() {
                 setTimeout(loader.hide, 500);
                 const input = document.getElementById("mainTxtAr");
                 if (input && !input._listenerAttached) {
-                    input.addEventListener('input', function () {
-                        this.style.height = 'auto';
-                        this.style.height = Math.min(this.scrollHeight - 20, 300) + 'px';
-                    });
+                    attachAutoResize(input);
 
                     input.addEventListener("keydown", (ev) => {
                         if (ev.key === "Enter" && !ev.shiftKey) {
                             const payload = {
                                 cmd: "message_new",
-                                content: (input.value),
+                                content: input.value,
                                 channel: state.currentChannel,
                             };
                             const r = state.reply_to[state.currentChannel];
@@ -172,8 +169,10 @@ function attachWsHandlers() {
                             ws.send(JSON.stringify(payload));
                             ev.preventDefault();
                             input.value = "";
+                            input.style.height = "auto";
                         }
                     });
+
                     input._listenerAttached = true;
                 }
                 break;
