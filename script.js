@@ -211,19 +211,18 @@ class ActionBuilder {
         const root = ElementFactory.div("msg")
         const data = ElementFactory.div("data")
 
-        const ic = ElementFactory.div("icon", icon)
+        const ic = ElementFactory.div("icon", icon || "info_i")
         const name = ElementFactory.div("inline bold")
         name.innerHTML = username
 
         const act = ElementFactory.div("inline")
         act.innerHTML = action
 
-        icon && data.appendChild(ic)
         username && data.appendChild(name)
         action && data.appendChild(act)
 
         const time = ElementFactory.div("time", TimeUtil.now())
-        root.append(data, time)
+        root.append(ic, data, time)
 
         let timer = null
         if (expiry) {

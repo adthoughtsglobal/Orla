@@ -337,6 +337,20 @@ function attachWsHandlers() {
                 }
                 break;
             }
+            case "status_get": {
+                if (data.status.text && state.users[data.username]?.status?.text != data.status.text)
+                    document.getElementById("logspane").appendChild(
+                        MessageBuilder.action({
+                            icon: "add_reaction",
+                            username: data.username,
+                            action: "set status: " + data.status.text,
+                            time: ""
+                        })
+                    )
+
+                state.users[data.username].status = data.status;
+                break;
+            }
             case 'message_react_add': {
                 document.getElementById("logspane").appendChild(
                     MessageBuilder.action({
