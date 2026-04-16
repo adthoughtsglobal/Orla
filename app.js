@@ -5,6 +5,8 @@ if (localStorage.getItem("currentServer")) {
     currentServer = localStorage.getItem("currentServer");
 }
 
+const customEmojisByServer = new Map();
+
 let state = {
     _currentChannel: "general",
     members_list_shown: true,
@@ -187,6 +189,13 @@ function attachWsHandlers() {
                 break;
             case "messages_get":
                 if (data.messages) listMessages(data.messages);
+                break;
+            case "messages_pinned":
+                if (data.messages) listInPane(data.messages);
+                break;
+            case "messages_search":
+                console.log("inter")
+                if (data.results) listInPane(data.results);
                 break;
             case "thread_messages":
                 if (data.messages) listMessages(data.messages);
@@ -393,14 +402,25 @@ function attachWsHandlers() {
                 }
                 break;
             }
+            case "emoji_get_all": {
+                const map = {};
+
+                for (const [id, emoji] of Object.entries(msg.emojis || {})) {
+                    map[id] = {
+                        name: emoji.name,
+                        fileName: emoji.fileName
+                    };
+                }
+
+                customEmojisByServer.set("chats.mistium.com", map);
+                break
+            }
             case "auth_error":
             case "error":
                 showError(data.val || data.message || "Unknown error");
                 break;
             case "ping":
                 break;
-            default:
-                say("Unhandled", data);
         }
     };
     ws.onerror = (e) => showError("WebSocket error");
@@ -518,6 +538,36 @@ function formatMessageContent(raw) {
     const codeBlocks = [];
     let i = 0;
 
+    const customEmojiPlaceholders = [];
+    const urlPlaceholders = [];
+    const markdownLinks = [];
+
+    raw = raw.replace(
+        /originChats:<emoji>\/\/([^/\s]+)\/([^\s]+)/g,
+        (_, sUrl, emojiId) => {
+            const token = `__CEMOJI_${customEmojiPlaceholders.length}_${Math.random().toString(36).slice(2)}__`;
+            customEmojiPlaceholders.push({ token, sUrl, emojiId });
+            return token;
+        }
+    );
+
+    raw = raw.replace(
+        /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+        (_, name, url) => {
+            const token = `__MDLINK_${markdownLinks.length}_${Math.random().toString(36).slice(2)}__`;
+            markdownLinks.push({ token, name, url });
+            return token;
+        }
+    );
+
+    raw = raw.replace(
+        /(https?:\/\/[^\s"'<>]+)/g,
+        (url) => {
+            const token = `__URL_${urlPlaceholders.length}_${Math.random().toString(36).slice(2)}__`;
+            urlPlaceholders.push({ token, url });
+            return token;
+        }
+    );
     raw = raw.replace(codeBlockRegex, (_, lang, code) => {
         const token = `__CDBLK_${i}__`;
         codeBlocks.push({
@@ -571,6 +621,12 @@ function formatMessageContent(raw) {
             .catch(() => { });
     }
 
+    function toHttpBase(url) {
+        return url
+            .replace(/^wss:\/\//, "https://")
+            .replace(/^ws:\/\//, "http://");
+    }
+
     while ((m = urlRegex.exec(raw))) {
         const url = m[0];
         const idx = m.index;
@@ -591,7 +647,43 @@ function formatMessageContent(raw) {
     out = out.replace(/\r?\n/g, "<br>");
 
     codeBlocks.forEach(b => out = out.replace(b.token, b.html));
+    for (const e of customEmojiPlaceholders) {
+        const serverUrl = state.server.url;
+        const baseUrl = toHttpBase(serverUrl);
+        const emojis = customEmojisByServer.value?.[serverUrl];
 
+        let html;
+
+        const emoji = emojis?.[e.emojiId];
+
+        if (!emoji) {
+            const url = `${baseUrl}/emojis/${e.emojiId}`;
+            html = `<img class="custom-emoji custom-emoji-remote"
+            data-surl="${serverUrl}"
+            data-emoji-id="${e.emojiId}"
+            src="${url}"
+            loading="lazy" />`;
+        } else {
+            const url = `${baseUrl}/emojis/${emoji.fileName}`;
+            html = `<img class="custom-emoji"
+            src="${url}"
+            alt=":${emoji.name}:"
+            title="${emoji.name}"
+            loading="lazy" />`;
+        }
+
+        out = out.replace(e.token, html);
+    }
+    for (const l of markdownLinks) {
+        const safeUrl = encodeURI(l.url);
+        const html = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(l.name)}</a>`;
+        out = out.replace(l.token, html);
+    }
+    for (const u of urlPlaceholders) {
+        const safeUrl = encodeURI(u.url);
+        const html = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`;
+        out = out.replace(u.token, html);
+    }
     setTimeout(() => {
         checks.forEach(c => {
             const a = document.getElementById(c.id);
@@ -729,22 +821,46 @@ function renderMessage(message) {
 
 var lastmsgid = null;
 function renderVisible(message, prevmsg) {
-    const date = new Date(message.timestamp * 1000);
-    const timeStr = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    const avatar = `https://avatars.rotur.dev/${encodeURIComponent(message.user)}`;
-    const text = formatMessageContent(message.content) + (message.edited ? " (edited)" : "");
+    if (!message) return document.createElement('div');
+
+    const timestamp = typeof message.timestamp === 'number' ? message.timestamp : Date.now() / 1000;
+    const date = new Date(timestamp * 1000);
+
+    const timeStr = date.toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    const user = message.user ?? 'unknown';
+
+    const avatar = `https://avatars.rotur.dev/${encodeURIComponent(user)}`;
+
+    const content = message.content ?? '';
+    const text = (typeof formatMessageContent === 'function' ? formatMessageContent(content) : content)
+        + (message.edited ? ' (edited)' : '');
+
+    if (typeof MessageBuilder?.message !== 'function') {
+        const fallback = document.createElement('div');
+        fallback.textContent = text;
+        return fallback;
+    }
 
     const msgEl = MessageBuilder.message({
         avatar,
-        username: message.user,
-        timeStr: timeStr,
+        username: user,
+        timeStr,
         text,
         message,
         prevMessage: prevmsg
     });
-    setTimeout(() => renderReactions(message, msgEl), 0);
 
-    // msgEl.appendChild(buildActions(message));
+    setTimeout(() => {
+        if (typeof renderReactions === 'function') {
+            renderReactions(message, msgEl);
+        }
+    }, 0);
+
     return msgEl;
 }
 
@@ -1367,4 +1483,18 @@ function say(text) {
 
 var settings = {
     get: () => { return 0 }, set: () => { return 0 }
+}
+
+
+function listInPane(messageList) {
+    console.log(messageList)
+    if (!messageList.length) return;
+
+    console.log("rendering messgaes", messageList)
+    state.additionalMessageLoad = false;
+    const chatArea = document.getElementById("listspane");
+    for (const message of messageList) {
+        const msgEl = renderVisible(message)
+        if (msgEl) chatArea.appendChild(msgEl);
+    }
 }

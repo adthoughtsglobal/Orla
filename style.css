@@ -466,3 +466,9 @@ img.msg_img {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.custom-emoji {
+    width: 1em;
+    transform: scale(1.8);
+    margin: 0 .5em;
+}

@@ -28,40 +28,47 @@ commandinput.addEventListener("keyup", async (event) => {
 async function processCommand() {
     function parse(input) {
         let i = 0
+
         while (i < input.length && input[i] === ' ') i++
+
         let cmd = ''
-        while (i < input.length && input[i] !== ' ' && input[i] !== ',') cmd += input[i++]
+        while (i < input.length && input[i] !== ' ') cmd += input[i++]
 
         let params = []
         let cur = ''
-        let inQuotes = false
+        let quote = null
 
         while (i < input.length) {
             let c = input[i++]
 
-            if (c === '"') {
-                inQuotes = !inQuotes
-                continue
+            if ((c === '"' || c === "'")) {
+                if (quote === null) {
+                    quote = c
+                    continue
+                }
+                if (quote === c) {
+                    quote = null
+                    continue
+                }
             }
 
-            if (c === ',' && !inQuotes) {
-                if (cur.trim().length) params.push(cur.trim())
-                cur = ''
+            if (c === ' ' && quote === null) {
+                if (cur.length) {
+                    params.push(cur)
+                    cur = ''
+                }
+                while (i < input.length && input[i] === ' ') i++
                 continue
-            }
-
-            if (c === ' ' && !inQuotes) {
-                if (cur.length === 0) continue
             }
 
             cur += c
         }
 
-        if (cur.trim().length) params.push(cur.trim())
+        if (cur.length) params.push(cur)
 
         return { command: cmd, params }
     }
-    let output = parse(commandinput.value);
+    var output = parse(commandinput.value);
 
     document.getElementById("logspane").appendChild(
         MessageBuilder.action({
@@ -70,6 +77,7 @@ async function processCommand() {
             time: ""
         })
     )
+    console.log(5405840545, output)
     switch (output.command) {
         case "ls":
             const rows = state.channelsArray
@@ -419,8 +427,20 @@ async function processCommand() {
                 case "list":
                     break;
                 case "pinned":
+                    pane.innerHTML = `<p>Pinned messages in #${state.currentChannel}:</p>`
+                    ws.send(JSON.stringify({
+                        cmd: "messages_pinned",
+                        channel: state.currentChannel,
+                    }));
                     break;
                 case "search":
+                    pane.innerHTML = `<p>Messages containing "${output.params[1]}":</p>`
+                    console.log(output)
+                    ws.send(JSON.stringify({
+                        cmd: "messages_search",
+                        channel: state.currentChannel,
+                        query: output.params[1]
+                    }));
                     break;
             }
             break;
