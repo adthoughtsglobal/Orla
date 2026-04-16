@@ -11,7 +11,9 @@
 
 <body class="flex x">
     <div class="serverslist">
-        s
+        <div class="ind_server">
+            <img src="" alt="">
+        </div>
     </div>
     <div class="cli flex fill x">
         <div class="interactive pane flex fill y">
@@ -33,12 +35,12 @@
             </div>
         </div>
         <div class="pane logs">
-            <!-- <div class="listspane">
-                <div class="paneheader">
-                    <span>Lists</span>
-                </div>
-                <div class="empty">Use the list command to list stuff here</div>
-            </div> -->
+            <div class="listssearch inputs">
+                <input type="text" id="paneSearch" placeholder="search data in pane...">
+            </div>
+            <div id="listspane">
+                <div class="empty">Use the pane command to show stuff here</div>
+            </div>
             <div id="logspane"></div>
             <div class="inputs">
                 <textarea id="commandinput" rows="1" type="text" placeholder="use commands..."></textarea>

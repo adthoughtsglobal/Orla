@@ -1175,8 +1175,8 @@ function hidereplyPrompt() {
     document.querySelectorAll('.replyingto').forEach(el => el.classList.remove('replyingto'))
 }
 
-async function changeServer() {
-    currentServer = await ask("Enter a server URL:") || currentServer;
+async function changeServer(x) {
+    currentServer = x;
     localStorage.setItem("currentServer", currentServer);
     ws.close();
     greenflag();

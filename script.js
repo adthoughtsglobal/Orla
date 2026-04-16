@@ -36,6 +36,14 @@ class ElementFactory {
         el.textContent = text
         return el
     }
+    
+    static icnBtn(icon, text) {
+        const el = document.createElement("a");
+        el.className = "icon";
+        el.setAttribute("data-tooltip", text)
+        el.textContent = icon;
+        return el
+    }
 }
 
 class ReplyBuilder {
@@ -103,17 +111,17 @@ class MessageActions {
     static build(message) {
         const actions = ElementFactory.div("msg_actions")
 
-        const reply = ElementFactory.link("reply")
+        const reply = ElementFactory.icnBtn("reply","reply")
         reply.addEventListener("click", () => {
             runcmd(`reply ${message.id}`)
         })
 
-        const del = ElementFactory.link("delete")
+        const del = ElementFactory.icnBtn("delete","delete")
         del.addEventListener("click", () => {
             runcmd(`delete ${message.id}`)
         })
 
-        const copy = ElementFactory.link("copy_id")
+        const copy = ElementFactory.icnBtn("content_copy","copy_id")
         copy.addEventListener("click", () => {
             copy.innerText = "copied"
             navigator.clipboard.writeText(message.id)
@@ -140,7 +148,7 @@ class MessageBuilder {
             const img = ElementFactory.img("pfp", avatar)
 
             const name = ElementFactory.div("inline bold", username)
-            name.style.color = state.users[username].color
+            name.style.color = state.users[username]?.color
             name.addEventListener("click", () => {
                 runcmd(`profile ${username.toLowerCase()}`)
             })
@@ -149,16 +157,18 @@ class MessageBuilder {
             const fill = ElementFactory.div("fill")
             const actions = MessageActions.build(message)
 
-            data.append(img, name, time, fill, actions)
+            data.append(img, name, fill, actions, time)
         } else {
+            root.classList.add("connected")
+            const actions = MessageActions.build(message)
             const time = ElementFactory.div("time", timeStr)
-            data.appendChild(time)
+            data.append(actions, time)
         }
 
 
-        let msg = null
+        let msg = ElementFactory.div("inline p")
         if (text && text.trim()) {
-            msg = ElementFactory.div("inline p")
+            msg.classList.add("contains_text")
             const parsed = ContentParser.parse(text)
             msg.appendChild(parsed)
         }
@@ -166,12 +176,20 @@ class MessageBuilder {
         const reply = ReplyBuilder.build(message)
         const attachments = AttachmentBuilder.build(message.attachments)
 
-        root.append(
-            reply || "",
-            data,
-            msg || "",
-            attachments || ""
-        )
+        if (attachments) msg.append(attachments || "");
+        if (connected) {
+            root.append(
+                msg || "",
+                data
+            )
+
+        } else {
+            root.append(
+                reply || "",
+                data,
+                msg || ""
+            )
+        }
 
         return root
     }

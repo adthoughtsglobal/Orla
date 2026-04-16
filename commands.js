@@ -1,6 +1,10 @@
 var commandinput = document.getElementById("commandinput")
-
+var pane = document.getElementById("listspane");
 let submitOnRelease = false
+const listsSearchInputsElement = document.querySelector('.listssearch.inputs')
+const listsPaneElement = document.getElementById('listspane')
+
+let areListsPanelsVisible = false
 
 attachAutoResize(commandinput);
 
@@ -336,6 +340,91 @@ async function processCommand() {
             })();
             break;
         }
+        case "server": {
+            changeServer(output.params[0])
+            break;
+        }
+        case "pane": {
+            if (!output.params[0]) {
+                function toggleBoth() {
+                    const v = areListsPanelsVisible ? '' : 'none'
+                    listsPaneElement.style.display = v
+                    listsSearchInputsElement.style.display = v
+                    areListsPanelsVisible = !areListsPanelsVisible;
+                }
+                toggleBoth();
+                return;
+            }
+            pane.innerHTML = `<div class="empty">Computing...</div>`;
+            state.paneState = output.params[0];
+            switch (output.params[0]) {
+                case "members":
+                    pane.innerHTML = ""
+
+                    const escapeHtml = v =>
+                        String(v)
+                            .replaceAll("&", "&amp;")
+                            .replaceAll("<", "&lt;")
+                            .replaceAll(">", "&gt;")
+
+                    const formatValue = (value, indent = 0) => {
+                        if (value == null) return null
+
+                        if (Array.isArray(value)) {
+                            return value.map(escapeHtml).join(", ")
+                        }
+
+                        if (value && typeof value === "object") {
+                            const lines = Object.entries(value)
+                                .filter(([, v]) => v != null)
+                                .map(([k, v]) => {
+                                    const pad = "&nbsp;".repeat(indent + 2)
+                                    return `${pad}<span style="color:rgb(var(--highlight))">${escapeHtml(k)}</span>: ${formatValue(v, indent + 2)}`
+                                })
+                                .filter(Boolean)
+                                .join("<br>")
+
+                            return lines ? "<br>" + lines : null
+                        }
+
+                        return escapeHtml(value)
+                    }
+
+                    Object.entries(state.users).forEach(([name, user]) => {
+                        const row = document.createElement("div")
+
+                        const values = [
+                            `<span style="color:rgb(var(--highlight))">name</span>: ${escapeHtml(name)}`
+                        ]
+
+                        Object.entries(user).forEach(([key, value]) => {
+                            const formatted = formatValue(value)
+                            if (formatted == null) return
+
+                            values.push(
+                                `<span style="color:rgb(var(--highlight))">${escapeHtml(key)}</span>: ${formatted}`
+                            )
+                        })
+
+                        row.innerHTML = values.join("<br>")
+                        row.style.marginBottom = "8px"
+
+                        pane.appendChild(row)
+                    })
+
+                    filterPane()
+                    break;
+                case "object":
+                    break;
+                case "list":
+                    break;
+                case "pinned":
+                    break;
+                case "search":
+                    break;
+            }
+            break;
+        }
     }
 
     commandinput.value = "";
@@ -357,3 +446,106 @@ async function runcmd(cmd) {
         }, 1000);
     }
 }
+const search = document.getElementById("paneSearch")
+
+function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function clearHighlight(el) {
+    el.querySelectorAll("mark").forEach(mark => {
+        mark.replaceWith(document.createTextNode(mark.textContent))
+    })
+    el.normalize()
+}
+
+function highlight(el, q) {
+    clearHighlight(el)
+    if (!q) return
+
+    const re = new RegExp(escapeRegExp(q), "gi")
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const nodes = []
+
+    while (walker.nextNode()) nodes.push(walker.currentNode)
+
+    nodes.forEach(node => {
+        const text = node.nodeValue
+        if (!text.trim()) return
+        if (!re.test(text)) return
+
+        re.lastIndex = 0
+        const frag = document.createDocumentFragment()
+        let last = 0
+
+        text.replace(re, (match, offset) => {
+            frag.append(text.slice(last, offset))
+            const mark = document.createElement("mark")
+            mark.textContent = match
+            frag.append(mark)
+            last = offset + match.length
+        })
+
+        frag.append(text.slice(last))
+        node.parentNode.replaceChild(frag, node)
+    })
+}
+
+function parseQuery(input) {
+    const tokens = []
+    const re = /(\w+):\s*([^:]+)|(\S+)/g
+    let m
+
+    while ((m = re.exec(input))) {
+        if (m[1]) {
+            tokens.push({
+                type: "field",
+                key: m[1].toLowerCase(),
+                value: m[2].trim().toLowerCase()
+            })
+        } else if (m[3]) {
+            tokens.push({
+                type: "text",
+                value: m[3].toLowerCase()
+            })
+        }
+    }
+
+    return tokens
+}
+
+function rowMatches(row, tokens) {
+    const text = row.textContent.toLowerCase()
+
+    return tokens.every(token => {
+        if (token.type === "text") {
+            return text.includes(token.value)
+        }
+
+        const re = new RegExp(
+            `${escapeRegExp(token.key)}\\s*:\\s*([\\s\\S]*?)($|\\n)`,
+            "i"
+        )
+
+        const match = row.innerText.match(re)
+        if (!match) return false
+
+        return match[1].toLowerCase().includes(token.value)
+    })
+}
+
+function filterPane() {
+    const raw = search.value.trim()
+    const tokens = parseQuery(raw)
+    const rows = Array.from(pane.children)
+
+    rows.forEach(row => {
+        const show = !tokens.length || rowMatches(row, tokens)
+
+        row.style.display = show ? "" : "none"
+        if (show) highlight(row, raw)
+        else clearHighlight(row)
+    })
+}
+
+search.addEventListener("input", filterPane)
