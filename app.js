@@ -87,13 +87,90 @@ function escapeHTML(str) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
 }
+const toFormattedString = (value, indent = 0, seen = new WeakSet()) => {
+    const frag = document.createDocumentFragment()
 
-// function replaceEmojis(str) {
-//     for (const emoji of emojis)
-//         str = str.replaceAll(":" + emoji.label.replaceAll(" ", "_") + ":", emoji.emoji);
+    const line = (text) => {
+        const div = document.createElement("div")
+        div.style.paddingLeft = `${indent * 12}px`
+        div.textContent = text
+        frag.appendChild(div)
+    }
 
-//     return str;
-// }
+    if (value == null) return frag
+
+    if (typeof value === "string") {
+        line(value)
+        return frag
+    }
+
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+        line(String(value))
+        return frag
+    }
+
+    if (typeof value === "function") {
+        line(value.name ? `[Function ${value.name}]` : "[Function]")
+        return frag
+    }
+
+    if (typeof value === "symbol") {
+        line(value.toString())
+        return frag
+    }
+
+    if (value instanceof Date) {
+        line(value.toISOString())
+        return frag
+    }
+
+    if (value instanceof RegExp) {
+        line(value.toString())
+        return frag
+    }
+
+    if (typeof value === "object") {
+        if (seen.has(value)) {
+            line("[Circular]")
+            return frag
+        }
+
+        seen.add(value)
+
+        if (Array.isArray(value)) {
+            line("[")
+            for (const item of value) {
+                frag.appendChild(toFormattedString(item, indent + 1, seen))
+            }
+            const end = document.createElement("div")
+            end.style.paddingLeft = `${indent * 12}px`
+            end.textContent = "]"
+            frag.appendChild(end)
+            return frag
+        }
+
+        line("{")
+        for (const [key, val] of Object.entries(value)) {
+            if (val == null) continue
+
+            const div = document.createElement("div")
+            div.style.paddingLeft = `${(indent + 1) * 12}px`
+            div.textContent = `${key}:`
+            frag.appendChild(div)
+
+            frag.appendChild(toFormattedString(val, indent + 2, seen))
+        }
+
+        const end = document.createElement("div")
+        end.style.paddingLeft = `${indent * 12}px`
+        end.textContent = "}"
+        frag.appendChild(end)
+        return frag
+    }
+
+    line(String(value))
+    return frag
+}
 
 function roturToken() {
     return roturExtension.userToken;
@@ -900,71 +977,6 @@ function renderBlocked(message, prevmsg) {
     header.append(icon, text, link);
     div.appendChild(header);
     return div;
-}
-
-function buildActions(message) {
-    // const wrap = document.createElement("div");
-    // wrap.className = "msg_actions";
-
-    // const reply = document.createElement("a");
-    // reply.textContent = "reply";
-    // reply.onclick = () => {
-    //     if (state.editing) cancelEdit();
-    //     state.reply_to[state.currentChannel] = message;
-    //     if (canSend(state.currentChannel)) showreplyPrompt(message);
-    // };
-
-    // wrap.appendChild(reply);
-
-    // if (message.user === state.user.username) {
-    //     const del = document.createElement("a");
-    //     del.textContent = "delete";
-    //     del.onclick = () => ws.send(JSON.stringify({ cmd: "message_delete", channel: state.currentChannel, id: message.id }));
-    //     wrap.appendChild(del);
-    // }
-
-    // const copy = document.createElement("a");
-    // copy.textContent = "copy ID";
-    // copy.onclick = () => navigator.clipboard?.writeText(message.id || "").catch(() => {});
-
-    // wrap.appendChild(copy);
-
-    // return wrap;
-}
-
-
-function attachYouTubeEmbed(container, url) {
-    const api = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-    fetch(api)
-        .then(r => r.json())
-        .then(d => {
-            const wrap = document.createElement("div");
-            wrap.classList.add("yt_embed");
-
-            const ch = document.createElement("div");
-            ch.classList.add("yt_channel");
-            ch.textContent = d.author_name;
-
-            const ti = document.createElement("div");
-            ti.classList.add("yt_title");
-            ti.textContent = d.title;
-
-            const iframe = document.createElement("iframe");
-            iframe.src = url.replace("watch?v=", "embed/");
-            iframe.allowFullscreen = true;
-            iframe.loading = "lazy";
-
-            wrap.appendChild(ch);
-            wrap.appendChild(ti);
-            wrap.appendChild(iframe);
-            container.appendChild(wrap);
-        })
-        .catch(() => { });
-}
-
-function detectYouTubeEmbeds(messageDiv, text) {
-    const urls = [...text.matchAll(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g)].map(m => m[0]);
-    for (const u of urls) attachYouTubeEmbed(messageDiv, u);
 }
 
 const threshold = 100

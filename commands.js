@@ -6,6 +6,15 @@ const listsPaneElement = document.getElementById('listspane')
 
 let areListsPanelsVisible = false
 
+function toggleBoth() {
+    const v = areListsPanelsVisible ? '' : 'none'
+    listsPaneElement.style.display = v
+    listsSearchInputsElement.style.display = v
+    areListsPanelsVisible = !areListsPanelsVisible;
+}
+
+toggleBoth();
+
 attachAutoResize(commandinput);
 
 commandinput.addEventListener("keydown", (event) => {
@@ -354,12 +363,6 @@ async function processCommand() {
         }
         case "pane": {
             if (!output.params[0]) {
-                function toggleBoth() {
-                    const v = areListsPanelsVisible ? '' : 'none'
-                    listsPaneElement.style.display = v
-                    listsSearchInputsElement.style.display = v
-                    areListsPanelsVisible = !areListsPanelsVisible;
-                }
                 toggleBoth();
                 return;
             }
@@ -369,48 +372,19 @@ async function processCommand() {
                 case "members":
                     pane.innerHTML = ""
 
-                    const escapeHtml = v =>
-                        String(v)
-                            .replaceAll("&", "&amp;")
-                            .replaceAll("<", "&lt;")
-                            .replaceAll(">", "&gt;")
-
-                    const formatValue = (value, indent = 0) => {
-                        if (value == null) return null
-
-                        if (Array.isArray(value)) {
-                            return value.map(escapeHtml).join(", ")
-                        }
-
-                        if (value && typeof value === "object") {
-                            const lines = Object.entries(value)
-                                .filter(([, v]) => v != null)
-                                .map(([k, v]) => {
-                                    const pad = "&nbsp;".repeat(indent + 2)
-                                    return `${pad}<span style="color:rgb(var(--highlight))">${escapeHtml(k)}</span>: ${formatValue(v, indent + 2)}`
-                                })
-                                .filter(Boolean)
-                                .join("<br>")
-
-                            return lines ? "<br>" + lines : null
-                        }
-
-                        return escapeHtml(value)
-                    }
-
                     Object.entries(state.users).forEach(([name, user]) => {
                         const row = document.createElement("div")
 
                         const values = [
-                            `<span style="color:rgb(var(--highlight))">name</span>: ${escapeHtml(name)}`
+                            `<span style="color:rgb(var(--highlight))">name</span>: ${toFormattedString(name)}`
                         ]
 
                         Object.entries(user).forEach(([key, value]) => {
-                            const formatted = formatValue(value)
+                            const formatted = toFormattedString(value)
                             if (formatted == null) return
 
                             values.push(
-                                `<span style="color:rgb(var(--highlight))">${escapeHtml(key)}</span>: ${formatted}`
+                                `<span style="color:rgb(var(--highlight))">${escapeHTML(key)}</span>: ${formatted}`
                             )
                         })
 
@@ -423,6 +397,10 @@ async function processCommand() {
                     filterPane()
                     break;
                 case "object":
+                    pane.innerHTML = `<p>state.${output.params[1]}:</p>`
+                    if (state[output.params[1]]) {
+                        pane.appendChild(toFormattedString(state[output.params[1]]));
+                    }
                     break;
                 case "list":
                     break;

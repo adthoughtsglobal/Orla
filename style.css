@@ -205,7 +205,8 @@ textarea {
     background: rgb(var(--two));
     display: flex;
 
-    &>textarea, &>input {
+    &>textarea,
+    &>input {
         background-color: transparent;
         outline: 0;
         border: 0;
@@ -223,6 +224,7 @@ textarea {
 div#interactive_logs {
     overflow: hidden;
     overflow-y: auto;
+    overflow-anchor: auto;
 }
 
 .pane.interactive {
@@ -245,11 +247,13 @@ div#interactive_logs {
     max-height: 50vh;
     box-shadow: 0 1px 0 rgb(var(--two));
 
-    &>*{
+    &>* {
         padding: 1em;
+
         &:nth-child(even) {
             background-color: rgb(var(--two));
-    }}
+        }
+    }
 }
 
 #logspane {
