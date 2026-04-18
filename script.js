@@ -123,10 +123,10 @@ class MessageActions {
 
         const copy = ElementFactory.icnBtn("content_copy","copy_id")
         copy.addEventListener("click", () => {
-            copy.innerText = "copied"
+            copy.innerText = "check"
             navigator.clipboard.writeText(message.id)
             setTimeout(() => {
-                copy.innerText = "copy_id"
+                copy.innerText = "content_copy"
             }, 2000)
         })
 

@@ -1,0 +1,120 @@
+:root {
+    --primary: #29B669 !important;
+    --primary-hover: #45fa96;
+}
+
+body {
+    background-color: transparent !important;
+}
+
+.modal {
+    position: relative;
+}
+
+.security-notice {
+    display: none;
+}
+
+.main-content {
+    align-items: stretch;
+
+    &>* {
+        align-items: center;
+
+        &>* {
+            max-width: none !important;
+        }
+    }
+}
+
+.form-group {
+    max-width: none;
+}
+
+.btn-primary {
+    position: absolute;
+    bottom: 2em;
+    right: 2em;
+    width: fit-content;
+}
+
+.sidebar-header>p {
+    position: relative;
+    color: transparent;
+    opacity: .5;
+
+    &:after {
+        position: absolute;
+        top: 0;
+        left: 0;
+        content: "Orla is a Rotur client.";
+        color: var(--text);
+    }
+}
+
+.google-signin-container,
+[style="width:100%;max-width:320px;display:flex;justify-content:center;margin-top:1rem;"] {
+    display: none !important;
+}
+
+[style="margin-top:1.5rem;display:flex;flex-direction:column;gap:0.75rem;width:100%;max-width:280px;"] {
+    margin: auto;
+}
+
+.logo-container {
+    width: fit-content;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 1em;
+    margin-bottom: 1.5em;
+}
+
+.subtitle::after {
+    content: " to continue to Orla.";
+}
+
+.tos-links {
+    position: absolute;
+    bottom: 2em;
+    text-align: justify;
+}
+
+.h-captcha {
+    margin-bottom: 4em;
+    text-align: center;
+}
+
+.welcome-content h1 {
+    height: 2em;
+    color: transparent;
+    position: relative;
+    white-space: nowrap;
+
+    &::after {
+        content: "Welcome to Orla!";
+        font-size: 39px;
+        color: var(--text);
+        top: 0;
+        left: 0;
+        position: absolute;
+        text-align: center;
+    }
+}
+
+.welcome-content p {
+    color: transparent;
+    position: relative;
+
+    &::after {
+        content: "Sign in to your Rotur account or create a new one.";
+        color: var(--text-secondary);
+        top: 0;
+        left: 0;
+        position: absolute;
+        text-align: center;
+    }
+}
+
+.welcome-logo img {
+    content: url(https://adthoughtsglobal.github.io/Orla/assets/logo_vector.svg);
+}

@@ -310,26 +310,22 @@ async function processCommand() {
             break;
         }
         case "balance": {
-            if (output.params[0]) {
-                (async () => {
-                    const res = await fetch(`https://api.rotur.dev/profile?name=${encodeURIComponent(output.params[0])}&include_posts=0`);
-                    const data = await res.json();
-                    document.getElementById("logspane").appendChild(
-                        MessageBuilder.action({
-                            icon: "attach_money",
-                            action: `${output.params[0]} has ${data.currency} rotur credits`
-                        })
-                    )
-                })();
-            } else {
-
+            (async () => {
+                let argtwo;
+                if (!output.params[0]) {
+                    argtwo = state.user.username;
+                } else {
+                    argtwo = output.params[0]
+                }
+                const res = await fetch(`https://api.rotur.dev/profile?name=${encodeURIComponent(argtwo)}&include_posts=0`);
+                const data = await res.json();
                 document.getElementById("logspane").appendChild(
                     MessageBuilder.action({
                         icon: "attach_money",
-                        action: `You have ${roturExtension.getBalance()} rotur credits`
+                        action: `${argtwo} has ${data.currency} rotur credits`
                     })
                 )
-            }
+            })();
             break;
         }
         case "transfer": {
@@ -361,6 +357,15 @@ async function processCommand() {
             changeServer(output.params[0])
             break;
         }
+        case "delete": {
+            let messageID = output.params[0];
+            ws.send(JSON.stringify({
+                cmd: "message_delete",
+                channel: state._currentChannel,
+                id: messageID
+            }));
+            break;
+        }
         case "pane": {
             if (!output.params[0]) {
                 toggleBoth();
@@ -374,23 +379,16 @@ async function processCommand() {
 
                     Object.entries(state.users).forEach(([name, user]) => {
                         const row = document.createElement("div")
-
-                        const values = [
-                            `<span style="color:rgb(var(--highlight))">name</span>: ${toFormattedString(name)}`
-                        ]
-
-                        Object.entries(user).forEach(([key, value]) => {
-                            const formatted = toFormattedString(value)
-                            if (formatted == null) return
-
-                            values.push(
-                                `<span style="color:rgb(var(--highlight))">${escapeHTML(key)}</span>: ${formatted}`
-                            )
-                        })
-
-                        row.innerHTML = values.join("<br>")
                         row.style.marginBottom = "8px"
 
+                        const result = toFormattedString({
+                            name,
+                            ...user
+                        })
+
+                        const lines = Array.isArray(result) ? result : result ? [result] : []
+
+                        lines.forEach(line => row.appendChild(line))
                         pane.appendChild(row)
                     })
 

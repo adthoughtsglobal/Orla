@@ -6,6 +6,7 @@ if (localStorage.getItem("currentServer")) {
 }
 
 const customEmojisByServer = new Map();
+let ws = null;
 
 let state = {
     _currentChannel: "general",
@@ -22,10 +23,9 @@ let state = {
     messages: {},
     unread: {},
     channels: {},
+    busy: false,
     set currentChannel(value) {
         this._currentChannel = value;
-        lazier.start();
-
         const ch = this.channelsArray.find(c => c.name === value);
 
         if (ws?.readyState === 1) {
@@ -60,7 +60,6 @@ let state = {
 let emojis;
 
 userKeysUpdate();
-let ws = null;
 const membersList = document.querySelector(".members_list");
 
 document.getElementById("memberlistbtn")?.addEventListener("click", () => {
@@ -68,7 +67,7 @@ document.getElementById("memberlistbtn")?.addEventListener("click", () => {
         membersList.style.display === "none" ? "" : "none";
 });
 function userKeysUpdate() {
-    state.user_keys = roturExtension.user ?? {};
+    // state.user_keys = roturExtension.user ?? {};
 }
 
 function connectWebSocket() {
@@ -173,7 +172,7 @@ const toFormattedString = (value, indent = 0, seen = new WeakSet()) => {
 }
 
 function roturToken() {
-    return roturExtension.userToken;
+    return roturState.userToken;
 }
 
 function attachWsHandlers() {
@@ -292,10 +291,10 @@ function attachWsHandlers() {
                     }
 
                     const node = document.querySelector(
-                        `.message[data-id="${CSS.escape(mid)}"]`,
+                        `.msg[data-id="${CSS.escape(mid)}"]`,
                     );
                     if (node) {
-                        node.style.color = "red";
+                        node.querySelector(".contains_text").style.color = "red";
                     };
 
                     document
@@ -603,100 +602,28 @@ function stripHtml(html) {
     div.innerHTML = html;
     return div.textContent || div.innerText || "";
 }
-
-function formatMessageContent(raw) {
-    if (typeof raw !== "string") raw = String(raw ?? "");
-    // raw = replaceEmojis(raw);
-
-    const emojiRegex = /^\p{Extended_Pictographic}$/u;
-    if (emojiRegex.test(raw)) return `<span style="font-size:2em;line-height:1">${raw}</span>`;
-
-    const codeBlockRegex = /```(\w+)?([\s\S]*?)```/g;
-    const codeBlocks = [];
-    let i = 0;
-
-    const customEmojiPlaceholders = [];
-    const urlPlaceholders = [];
-    const markdownLinks = [];
-
-    raw = raw.replace(
-        /originChats:<emoji>\/\/([^/\s]+)\/([^\s]+)/g,
+function resolveCustomEmojis(text, store = []) {
+    return text.replace(
+        /originChats:(?:<emoji>)?\/\/([^/\s<]+)\/([^<\s]+)/g,
         (_, sUrl, emojiId) => {
-            const token = `__CEMOJI_${customEmojiPlaceholders.length}_${Math.random().toString(36).slice(2)}__`;
-            customEmojiPlaceholders.push({ token, sUrl, emojiId });
+            const token = `__CEMOJI_${store.length}_${Math.random().toString(36).slice(2)}__`;
+            store.push({ token, sUrl, emojiId });
+            return token;
+        }
+    ).replace(
+        /originChats:\/\/([^/\s]+)\/([^\s]+)/g,
+        (_, sUrl, emojiId) => {
+            const token = `__CEMOJI_${store.length}_${Math.random().toString(36).slice(2)}__`;
+            store.push({ token, sUrl, emojiId });
             return token;
         }
     );
+}
 
-    raw = raw.replace(
-        /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-        (_, name, url) => {
-            const token = `__MDLINK_${markdownLinks.length}_${Math.random().toString(36).slice(2)}__`;
-            markdownLinks.push({ token, name, url });
-            return token;
-        }
-    );
-
-    raw = raw.replace(
-        /(https?:\/\/[^\s"'<>]+)/g,
-        (url) => {
-            const token = `__URL_${urlPlaceholders.length}_${Math.random().toString(36).slice(2)}__`;
-            urlPlaceholders.push({ token, url });
-            return token;
-        }
-    );
-    raw = raw.replace(codeBlockRegex, (_, lang, code) => {
-        const token = `__CDBLK_${i}__`;
-        codeBlocks.push({
-            token,
-            html: `<div><pre><code class="language-${lang}">${escapeHTML(code)}</code></pre></div>`
-        });
-        i++;
-        return token;
-    });
-
-    const inlineFormats = [
-        { r: /\*\*(.+?)\*\*/g, t: "<b>$1</b>" },
-        { r: /\*(.+?)\*/g, t: "<i>$1</i>" },
-        { r: /`([^`]+)`/g, t: "<kbd>$1</kbd>" },
-        { r: /__([^_]+)__/g, t: "<u>$1</u>" }
-    ];
-    inlineFormats.forEach(f => raw = raw.replace(f.r, f.t));
-
-    const headingRegex = [
-        { r: /^# (.+)$/gm, t: "<h1>$1</h1>" },
-        { r: /^## (.+)$/gm, t: "<h2>$1</h2>" },
-        { r: /^### (.+)$/gm, t: "<h3>$1</h3>" },
-        { r: /^-# (.+)$/gm, t: "<div style=\"font-size:0.8em;font-weight:bold\">$1</div>" }
-    ];
-    headingRegex.forEach(f => raw = raw.replace(f.r, f.t));
-
-    raw = raw.replace(/@(\w+)/g, `<span class="mention" onclick="launchSideBarApp('profile',{name:'$1'})">@$1</span>`);
-    raw = raw.replace(/#(\w+)/g, `<span class="mention" onclick="changeChannel('$1')">#$1</span>`);
-
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-
-    let out = "";
-    let last = 0;
-    let m;
-    const checks = [];
-
-    function tryConvertToImage(a, url) {
-        fetch(url, { method: "HEAD" })
-            .then(r => {
-                const t = r.headers.get("content-type") || "";
-                if (!t.startsWith("image/")) return;
-
-                const img = document.createElement("img");
-                img.src = proxyImageUrl(url);
-                img.className = "message-image";
-                img.loading = "lazy";
-                img.onclick = () => window.openImageModal && window.openImageModal(url);
-
-                a.replaceWith(img);
-            })
-            .catch(() => { });
-    }
+function customEmojiHTML(sUrl, emojiId) {
+    const currentServer = state.server.url;
+    const localSet = customEmojisByServer.value?.[currentServer];
+    const localEmoji = localSet?.[emojiId];
 
     function toHttpBase(url) {
         return url
@@ -704,71 +631,96 @@ function formatMessageContent(raw) {
             .replace(/^ws:\/\//, "http://");
     }
 
-    while ((m = urlRegex.exec(raw))) {
-        const url = m[0];
-        const idx = m.index;
-
-        if (idx > last) out += raw.slice(last, idx);
-
-        const safe = encodeURI(url);
-        const id = "url_" + Math.random().toString(36).slice(2);
-
-        out += `<a id="${id}" href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-        checks.push({ id, url });
-
-        last = idx + url.length;
+    function cleanEmojiPath(id) {
+        return String(id).replace(/^\/?emojis\/+/, "");
     }
 
-    if (last < raw.length) out += raw.slice(last);
-
-    out = out.replace(/\r?\n/g, "<br>");
-
-    codeBlocks.forEach(b => out = out.replace(b.token, b.html));
-    for (const e of customEmojiPlaceholders) {
-        const serverUrl = state.server.url;
-        const baseUrl = toHttpBase(serverUrl);
-        const emojis = customEmojisByServer.value?.[serverUrl];
-
-        let html;
-
-        const emoji = emojis?.[e.emojiId];
-
-        if (!emoji) {
-            const url = `${baseUrl}/emojis/${e.emojiId}`;
-            html = `<img class="custom-emoji custom-emoji-remote"
-            data-surl="${serverUrl}"
-            data-emoji-id="${e.emojiId}"
-            src="${url}"
-            loading="lazy" />`;
-        } else {
-            const url = `${baseUrl}/emojis/${emoji.fileName}`;
-            html = `<img class="custom-emoji"
-            src="${url}"
-            alt=":${emoji.name}:"
-            title="${emoji.name}"
-            loading="lazy" />`;
-        }
-
-        out = out.replace(e.token, html);
+    if (localEmoji) {
+        const baseUrl = toHttpBase(currentServer);
+        return `<img class="custom-emoji" src="${baseUrl}/emojis/${cleanEmojiPath(localEmoji.fileName)}" alt=":${localEmoji.name}:" title="${localEmoji.name}" loading="lazy">`;
     }
-    for (const l of markdownLinks) {
-        const safeUrl = encodeURI(l.url);
-        const html = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHTML(l.name)}</a>`;
-        out = out.replace(l.token, html);
+
+    const remoteBase = toHttpBase(`wss://${sUrl}`);
+    return `<img class="custom-emoji custom-emoji-remote" data-surl="${sUrl}" data-emoji-id="${emojiId}" src="${remoteBase}/emojis/${cleanEmojiPath(emojiId)}" loading="lazy">`;
+}
+
+function renderCustomEmojis(text) {
+    const store = [];
+    let out = resolveCustomEmojis(text, store);
+
+    for (const e of store) {
+        out = out.replace(e.token, customEmojiHTML(e.sUrl, e.emojiId));
     }
-    for (const u of urlPlaceholders) {
-        const safeUrl = encodeURI(u.url);
-        const html = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`;
-        out = out.replace(u.token, html);
-    }
-    setTimeout(() => {
-        checks.forEach(c => {
-            const a = document.getElementById(c.id);
-            if (a) tryConvertToImage(a, c.url);
-        });
-    });
 
     return out;
+}
+function formatMessageContent(raw) {
+    if (typeof raw !== "string") raw = String(raw ?? "");
+
+    const emojiRegex = /^\p{Extended_Pictographic}$/u;
+    if (emojiRegex.test(raw)) {
+        return `<span style="font-size:2em;line-height:1">${raw}</span>`;
+    }
+
+    const codeBlocks = [];
+    const markdownLinks = [];
+    const urlPlaceholders = [];
+    let i = 0;
+
+    raw = raw.replace(/```(\w+)?([\s\S]*?)```/g, (_, lang, code) => {
+        const token = `__CODE_${i++}__`;
+        codeBlocks.push({
+            token,
+            html: `<div><pre><code class="language-${lang || ""}">${escapeHTML(code)}</code></pre></div>`
+        });
+        return token;
+    });
+
+    raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, name, url) => {
+        const token = `__MD_${markdownLinks.length}__`;
+        markdownLinks.push({ token, name, url });
+        return token;
+    });
+
+    raw = raw.replace(/(https?:\/\/[^\s"'<>]+)/g, url => {
+        const token = `__URL_${urlPlaceholders.length}__`;
+        urlPlaceholders.push({ token, url });
+        return token;
+    });
+
+    raw = raw.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+    raw = raw.replace(/\*(.+?)\*/g, "<i>$1</i>");
+    raw = raw.replace(/`([^`]+)`/g, "<kbd>$1</kbd>");
+    raw = raw.replace(/__([^_]+)__/g, "<u>$1</u>");
+
+    raw = raw.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+    raw = raw.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+    raw = raw.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+
+    raw = raw.replace(/@(\w+)/g, `<span class="mention" onclick="launchSideBarApp('profile',{name:'$1'})">@$1</span>`);
+    raw = raw.replace(/#(\w+)/g, `<span class="mention" onclick="changeChannel('$1')">#$1</span>`);
+
+    raw = raw.replace(/\r?\n/g, "<br>");
+
+    raw = renderCustomEmojis(raw);
+
+    for (const b of codeBlocks) raw = raw.replace(b.token, b.html);
+
+    for (const l of markdownLinks) {
+        raw = raw.replace(
+            l.token,
+            `<a href="${encodeURI(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(l.name)}</a>`
+        );
+    }
+
+    for (const u of urlPlaceholders) {
+        raw = raw.replace(
+            u.token,
+            `<a href="${encodeURI(u.url)}" target="_blank" rel="noopener noreferrer">${encodeURI(u.url)}</a>`
+        );
+    }
+
+    return raw;
 }
 function escapeHTML(s) {
     return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
@@ -885,12 +837,10 @@ function renderMessage(message) {
     lastmsgid = message.id;
 
     const self = message.user === state.user.username;
-    const blocked = !self && (state.user_keys["sys.blocked"] ?? []).includes(message.user);
+    const blocked = !self && (roturState.user["sys.blocked"] ?? []).includes(message.user);
     if (blocked && !state.show_blocked_msgs) return;
 
     const node = blocked ? renderBlocked(message, prevmsg) : renderVisible(message, prevmsg);
-
-    // if (!blocked) detectEmbeds(node, message.content || "");
 
     return node;
 }
@@ -947,8 +897,8 @@ function renderBlocked(message, prevmsg) {
     header.classList.add("blockedheader");
 
     const icon = document.createElement("span");
-    icon.classList.add("symb");
-    icon.textContent = "block";
+    icon.classList.add("icon");
+    icon.textContent = "no_accounts";
 
     const text = document.createElement("span");
     text.textContent = "Blocked message —";
@@ -980,28 +930,40 @@ function renderBlocked(message, prevmsg) {
 }
 
 const threshold = 100
-let missedWhileScrolledUp = 0
-
+let missedWhileScrolledUp = 0, busymissed = 0;
 function shouldAutoScroll(el) {
-    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    return atBottom
 }
 
 function addMessage(messagePacket) {
     const chatArea = document.getElementById("interactive_logs");
-    if (state.currentChannel == messagePacket["channel"]) {
-        const message = messagePacket["message"];
+
+    if (state.currentChannel == messagePacket.channel) {
+        const message = messagePacket.message;
         chatArea.appendChild(renderMessage(message));
         attemptResolveMissingRepliesFor(message.id);
 
-        const atBottom = shouldAutoScroll(chatArea)
+        const atBottom = shouldAutoScroll(chatArea);
+        state.scrollLocked = atBottom;
 
         if (atBottom) {
-            chatArea.scrollTop = chatArea.scrollHeight
-            missedWhileScrolledUp = 0
-            updateMissedIndicator(0)
+            setTimeout(() => {
+                chatArea.scrollTop = chatArea.scrollHeight;
+                state.scrollLocked = true;
+            }, 200);
+
+            missedWhileScrolledUp = 0;
+            updateMissedIndicator(0);
         } else {
-            missedWhileScrolledUp++
-            updateMissedIndicator(missedWhileScrolledUp)
+            state.scrollLocked = false;
+            missedWhileScrolledUp++;
+            updateMissedIndicator(missedWhileScrolledUp);
+        }
+
+        if (state.busy) {
+            busymissed++;
+            document.title = "Orla Client • " + busymissed + " New";
         }
     } else {
         const ch = messagePacket["channel"];
@@ -1010,9 +972,6 @@ function addMessage(messagePacket) {
             updateChannelUnread(ch);
         }
     }
-    setTimeout(() => {
-        lazyRenderMessages();
-    }, 2000);
 }
 
 function handleScroll() {
@@ -1037,9 +996,10 @@ function updateMissedIndicator(count) {
 }
 
 let loadedCount = 0;
-let currentObserver;
+let currentObserver = null;
 function makeLoadTrigger(channelName, limit) {
     const channel = state.channelsArray.find(c => c.name === channelName);
+    console.log(327, channel, channelName)
     const t = document.createElement("div");
     t.style.height = "1px";
 
@@ -1055,7 +1015,7 @@ function makeLoadTrigger(channelName, limit) {
                     console.log("rendering 888", channel)
                     ws.send(JSON.stringify({
                         cmd: "messages_get",
-                        channel,
+                        channel: channelName,
                         limit,
                         start: loadedCount
                     }));
@@ -1070,18 +1030,20 @@ function makeLoadTrigger(channelName, limit) {
 
     return t;
 }
-function listMessages(messageList, channel = state.currentChannel, limit = 100) {
-    if (!messageList.length) return;
+function listMessages(messageList, channel = state._currentChannel, limit = 100) {
+    if (!messageList?.length) return;
 
-    console.log("rendering messgaes", messageList)
-    state.additionalMessageLoad = false;
     const chatArea = document.getElementById("interactive_logs");
+    if (!chatArea) return;
+
+    state.additionalMessageLoad = false;
+
     const prev = chatArea.scrollHeight;
 
     const frag = document.createDocumentFragment();
+
     if (chatArea.scrollHeight > chatArea.clientHeight || chatArea.firstChild) {
-        const trigger = makeLoadTrigger(channel, limit);
-        frag.appendChild(trigger);
+        frag.appendChild(makeLoadTrigger(channel, limit));
     }
 
     for (const m of messageList) {
@@ -1090,16 +1052,19 @@ function listMessages(messageList, channel = state.currentChannel, limit = 100) 
     }
 
     const first = chatArea.firstChild;
-    chatArea.insertBefore(frag, first);
+
+    if (first) {
+        chatArea.insertBefore(frag, first);
+    } else {
+        chatArea.appendChild(frag);
+    }
 
     const next = chatArea.scrollHeight;
     chatArea.scrollTop += next - prev;
 
     loadedCount += messageList.length;
 
-    lazier.end();
     attemptResolveAllMissingReplies();
-    setTimeout(lazyRenderMessages, 100);
 }
 function changeChannel(channel) {
     loadedCount = 0;
@@ -1122,8 +1087,6 @@ function changeChannel(channel) {
                 time: ""
             })
         )
-        const chatArea = document.getElementById("interactive_logs");
-        if (chatArea) chatArea.innerHTML = "";
     }
 
     if (state.unread[channel]) {
@@ -1133,6 +1096,10 @@ function changeChannel(channel) {
 
     updatemainTxtArPermissions();
     renderMembers();
+    setTimeout(() => {
+        const chatArea = document.getElementById("interactive_logs");
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }, 500);
 }
 
 function getUserColor(username) {
@@ -1251,7 +1218,7 @@ function updateUserPanel() {
     }
 }
 
-var loaderElement = document.getElementById("orion")
+var loaderElement = document.getElementById("fullloader")
 var loader = {
     show: () => {
         loaderElement.style.display = 'flex';
@@ -1265,17 +1232,6 @@ var loader = {
         }, 300);
     },
 }
-
-var lazier = {
-    start: () => {
-        document.body.classList.add("lazier_loader")
-    },
-    end: () => {
-        document.body.classList.remove("lazier_loader")
-    }
-}
-
-
 function showreplyPrompt(msg) {
 
     document.querySelectorAll('.replyingto').forEach(el => el.classList.remove('replyingto'))
@@ -1380,58 +1336,32 @@ function toggleEmojiMenu() {
         picker.style.display = "none"
     }
 }
-function lazyRenderMessages(selector = '.sing_msg') {
-    if (lazyRenderMessages._observer) return;
-    const messages = document.querySelectorAll(selector);
-
-    messages.forEach(msg => {
-        if (msg.dataset.lazyInit) return;
-        const h = msg.scrollHeight;
-        msg.dataset.h = h;
-        msg.dataset.content = msg.innerHTML;
-        msg.innerHTML = '<div style="height:' + h + 'px"></div>';
-        msg.dataset.lazyInit = 'true';
-    });
-
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            const msg = entry.target;
-            if (entry.isIntersecting) {
-                msg.innerHTML = msg.dataset.content;
-            } else {
-                const h = msg.dataset.h;
-                msg.innerHTML = '<div style="height:' + h + 'px"></div>';
-            }
-        });
-    }, { threshold: 0.1, rootMargin: '200px 0px 200px 0px' });
-
-    messages.forEach(msg => observer.observe(msg));
-    lazyRenderMessages._observer = observer;
-}
 
 function renderReactions(msg, container) {
     const reactions = msg.reactions;
     if (!reactions || Object.keys(reactions).length === 0) return;
 
-    const reactionsDiv = document.createElement('div');
-    reactionsDiv.className = 'message-reactions';
+    const reactionsDiv = document.createElement("div");
+    reactionsDiv.className = "message-reactions";
 
-    for (const [emoji, users] of Object.entries(reactions)) {
+    for (const [rawEmoji, users] of Object.entries(reactions)) {
         const count = users.length;
-        if (count === 0) continue;
+        if (!count) continue;
 
+        const emoji = renderCustomEmojis(rawEmoji);
         const hasReacted = users.includes(state.currentUser?.username);
 
-        const reactionEl = document.createElement('span');
-        reactionEl.className = 'reaction' + (hasReacted ? ' super' : '');
-        reactionEl.setAttribute("data-tooltip", users.toString());
+        const reactionEl = document.createElement("span");
+        reactionEl.className = "reaction" + (hasReacted ? " super" : "");
+        reactionEl.setAttribute("data-tooltip", users.join(", "));
         reactionEl.innerHTML = `
-            [<span class="reaction-emoji">${emoji}</span>
-            <span class="reaction-count">${count}</span>]
-        `;
-        reactionEl.addEventListener('click', (e) => {
+[<span class="reaction-emoji">${emoji}</span>
+<span class="reaction-count">${count}</span>]
+`;
+
+        reactionEl.addEventListener("click", e => {
             e.stopPropagation();
-            toggleReaction(msg.id, emoji);
+            toggleReaction(msg.id, rawEmoji);
         });
 
         reactionsDiv.appendChild(reactionEl);
@@ -1510,3 +1440,35 @@ function listInPane(messageList) {
         if (msgEl) chatArea.appendChild(msgEl);
     }
 }
+
+function updateBusy() {
+    state.busy = document.hidden
+    if (!state.busy) {
+        busymissed = 0;
+        document.title = "Orla Client";
+    }
+}
+document.addEventListener("visibilitychange", updateBusy)
+
+window.addEventListener("blur", () => {
+    state.wasScrollLockedBeforeBlur = state.scrollLocked
+
+    if (state.scrollLocked) {
+        const chatArea = document.getElementById("interactive_logs")
+        chatArea.scrollTop = chatArea.scrollHeight
+    }
+
+    state.busy = true
+})
+
+window.addEventListener("focus", () => {
+    updateBusy()
+
+    if (state.wasScrollLockedBeforeBlur) {
+        const chatArea = document.getElementById("interactive_logs")
+        chatArea.scrollTop = chatArea.scrollHeight
+        state.scrollLocked = true
+    }
+})
+
+updateBusy()
