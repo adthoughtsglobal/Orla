@@ -90,18 +90,17 @@ async function processCommand() {
     switch (output.command) {
         case "ls":
             const rows = state.channelsArray
-                .filter(c => c.name)
+                .filter(c => c?.name)
                 .map((c, i) => {
                     const idx = String(i).padStart(2, "0")
-                    const name = c.name === state._currentChannel
-                        ? `<strong>${c.name}</strong>`
-                        : c.name
+                    const label = c.name
+                    const name = c.active ? `<strong>${label}</strong>` : label
                     return `${idx} | ${name}`
                 })
 
             const table = rows.join("<br>")
 
-            document.getElementById("logspane").appendChild(
+            document.getElementById("logspane")?.appendChild(
                 MessageBuilder.action({
                     icon: "wand_stars",
                     action: table,
@@ -367,11 +366,10 @@ async function processCommand() {
             break;
         }
         case "pane": {
-            if (!output.params[0]) {
+            if ((!areListsPanelsVisible && !output.params[0]) || (areListsPanelsVisible && output.params[0])) {
                 toggleBoth();
-                return;
             }
-            pane.innerHTML = `<div class="empty">Computing...</div>`;
+            pane.innerHTML = `<div class="empty">no data</div>`;
             state.paneState = output.params[0];
             switch (output.params[0]) {
                 case "members":
@@ -394,7 +392,7 @@ async function processCommand() {
 
                     filterPane()
                     break;
-                case "object":
+                case "state":
                     pane.innerHTML = `<p>state.${output.params[1]}:</p>`
                     if (state[output.params[1]]) {
                         pane.appendChild(toFormattedString(state[output.params[1]]));

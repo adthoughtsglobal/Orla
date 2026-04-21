@@ -1,8 +1,8 @@
-if (localStorage.getItem("currentServer")) {
-    currentServer = localStorage.getItem("currentServer");
+if (settings.get("currentServer")) {
+    currentServer = settings.get("currentServer");
 } else {
-    localStorage.setItem("currentServer", "wss://chats.mistium.com");
-    currentServer = localStorage.getItem("currentServer");
+    settings.set("currentServer", "wss://chats.mistium.com");
+    currentServer = settings.get("currentServer");
 }
 
 const customEmojisByServer = new Map();
@@ -54,7 +54,10 @@ let state = {
     },
     typingUsers: {},
     additionalMessageLoad: false,
-    _embedCache: {}
+    _embedCache: {},
+    get settings() {
+        return settings.get()
+    }
 };
 
 let emojis;
@@ -75,100 +78,6 @@ function connectWebSocket() {
     try { if (ws && ws.readyState === 1) ws.close(); } catch { }
     ws = new WebSocket(currentServer);
     attachWsHandlers();
-}
-
-function escapeHTML(str) {
-    if (str == null) return "";
-    return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-const toFormattedString = (value, indent = 0, seen = new WeakSet()) => {
-    const frag = document.createDocumentFragment()
-
-    const line = (text) => {
-        const div = document.createElement("div")
-        div.style.paddingLeft = `${indent * 12}px`
-        div.textContent = text
-        frag.appendChild(div)
-    }
-
-    if (value == null) return frag
-
-    if (typeof value === "string") {
-        line(value)
-        return frag
-    }
-
-    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-        line(String(value))
-        return frag
-    }
-
-    if (typeof value === "function") {
-        line(value.name ? `[Function ${value.name}]` : "[Function]")
-        return frag
-    }
-
-    if (typeof value === "symbol") {
-        line(value.toString())
-        return frag
-    }
-
-    if (value instanceof Date) {
-        line(value.toISOString())
-        return frag
-    }
-
-    if (value instanceof RegExp) {
-        line(value.toString())
-        return frag
-    }
-
-    if (typeof value === "object") {
-        if (seen.has(value)) {
-            line("[Circular]")
-            return frag
-        }
-
-        seen.add(value)
-
-        if (Array.isArray(value)) {
-            line("[")
-            for (const item of value) {
-                frag.appendChild(toFormattedString(item, indent + 1, seen))
-            }
-            const end = document.createElement("div")
-            end.style.paddingLeft = `${indent * 12}px`
-            end.textContent = "]"
-            frag.appendChild(end)
-            return frag
-        }
-
-        line("{")
-        for (const [key, val] of Object.entries(value)) {
-            if (val == null) continue
-
-            const div = document.createElement("div")
-            div.style.paddingLeft = `${(indent + 1) * 12}px`
-            div.textContent = `${key}:`
-            frag.appendChild(div)
-
-            frag.appendChild(toFormattedString(val, indent + 2, seen))
-        }
-
-        const end = document.createElement("div")
-        end.style.paddingLeft = `${indent * 12}px`
-        end.textContent = "}"
-        frag.appendChild(end)
-        return frag
-    }
-
-    line(String(value))
-    return frag
 }
 
 function roturToken() {
@@ -192,22 +101,29 @@ function attachWsHandlers() {
                 state.server = data?.val?.server || {};
                 state.server.url = currentServer;
                 document
-                    .getElementById("currentServerIcon")
+                    .getElementById("loader_image")
                     ?.setAttribute("src", state.server.icon || "");
+
+                const servers = settings.get("servers_index") || [];
+
                 const sName = state.server.name || state.server.title || "Server";
-                const headert = document.getElementById("serverHeaderName");
-                if (headert) headert.textContent = sName;
                 const sIcon = state.server.icon;
-                const headerimg = document.getElementById("serverHeaderIcon");
-                if (headerimg) headerimg.src = sIcon;
                 const sURL = state.server.url;
-                const headerurl = document.getElementById("serverHeaderURL");
-                if (headerurl) headerurl.textContent = sURL;
+
+                const exists = servers.some(server => server.url === sURL);
+
+                if (!exists) {
+                    servers.push({
+                        name: sName,
+                        icon: sIcon,
+                        url: sURL
+                    });
+
+                    settings.set("servers_index", servers);
+                }
                 const authTok = roturToken();
-                console.log(67, authTok, vKey)
                 if (authTok && vKey) {
                     try {
-                        console.log(67, authTok, vKey)
                         await generateValidatorAndAuth(vKey, authTok);
                     } catch (e) { showError(e.message); }
                 } else if (!authTok) {
@@ -278,7 +194,6 @@ function attachWsHandlers() {
                 break;
             case "message_new":
                 addMessage(data);
-                handleMessageNotification(data);
                 break;
             case "message_delete": {
                 const mid = data.id;
@@ -508,30 +423,41 @@ function showError(msg) {
     say(msg, "failed");
 }
 function listChannels(channelList) {
-    const result = [];
+    const result = []
 
-    for (let channel of channelList) {
+    for (const channel of channelList) {
         if (channel.type === "text") {
             result.push({
+                id: channel.name || "",
                 name: channel.name || "",
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
-                active: channel.name === state.currentChannel
-            });
+                active: channel.name === state.currentChannel,
+                type: "text"
+            })
+        } else if (channel.type === "chat") {
+            result.push({
+                id: channel.name || "",
+                name: channel.display_name || channel.name || "",
+                desc: channel.description || "",
+                unread: state.unread[channel.name] || 0,
+                active: channel.name === state.currentChannel,
+                type: "chat"
+            })
         } else if (channel.type === "forum") {
             result.push({
+                id: channel.name || "",
                 name: channel.name || "thread",
-                type: channel.type,
+                type: "forum",
                 threads: channel.threads
-            });
+            })
         } else if (channel.type === "separator") {
-            result.push({ type: "separator" });
+            result.push({ type: "separator" })
         }
     }
 
-    state.channelsArray = result;
+    state.channelsArray = result
 }
-
 
 function generateValidatorAndAuth(vKey, authTok) {
     return (async () => {
@@ -540,7 +466,7 @@ function generateValidatorAndAuth(vKey, authTok) {
         const j = await resp.json();
         if (j.error) throw new Error(j.error);
         state.validator = j.validator;
-        localStorage.setItem("validator", j.validator);
+        settings.set("validator", j.validator);
         ws.send(JSON.stringify({ cmd: "auth", validator: j.validator }));
     })();
 }
@@ -586,22 +512,6 @@ function canView(channelName, userObj) {
     return false;
 }
 
-function extractUsername(u) {
-    if (!u) return "";
-    if (typeof u === "string") return u;
-    if (typeof u === "object") {
-        return (
-            u.username || u.name || u.displayName || u.user || u.id || "[unknown]"
-        );
-    }
-    return String(u);
-}
-
-function stripHtml(html) {
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    return div.textContent || div.innerText || "";
-}
 function resolveCustomEmojis(text, store = []) {
     return text.replace(
         /originChats:(?:<emoji>)?\/\/([^/\s<]+)\/([^<\s]+)/g,
@@ -657,6 +567,11 @@ function renderCustomEmojis(text) {
 function formatMessageContent(raw) {
     if (typeof raw !== "string") raw = String(raw ?? "");
 
+    raw = raw
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\r?\n/g, "<br>");
+
     const emojiRegex = /^\p{Extended_Pictographic}$/u;
     if (emojiRegex.test(raw)) {
         return `<span style="font-size:2em;line-height:1">${raw}</span>`;
@@ -671,7 +586,7 @@ function formatMessageContent(raw) {
         const token = `__CODE_${i++}__`;
         codeBlocks.push({
             token,
-            html: `<div><pre><code class="language-${lang || ""}">${escapeHTML(code)}</code></pre></div>`
+            html: `<div><pre><code class="language-${lang || ""}">${stripHtml(code)}</code></pre></div>`
         });
         return token;
     });
@@ -700,8 +615,6 @@ function formatMessageContent(raw) {
     raw = raw.replace(/@(\w+)/g, `<span class="mention" onclick="launchSideBarApp('profile',{name:'$1'})">@$1</span>`);
     raw = raw.replace(/#(\w+)/g, `<span class="mention" onclick="changeChannel('$1')">#$1</span>`);
 
-    raw = raw.replace(/\r?\n/g, "<br>");
-
     raw = renderCustomEmojis(raw);
 
     for (const b of codeBlocks) raw = raw.replace(b.token, b.html);
@@ -721,9 +634,6 @@ function formatMessageContent(raw) {
     }
 
     return raw;
-}
-function escapeHTML(s) {
-    return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 }
 
 function renderReplyExcerpt(message) {
@@ -1066,18 +976,66 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
 
     attemptResolveAllMissingReplies();
 }
+async function changeServer(x) {
+    currentServer = x;
+    settings.set("currentServer", currentServer);
+
+    const channelsState = settings.get("channels_state") || {};
+    const savedChannel = channelsState[currentServer];
+
+    const chatArea = document.getElementById("interactive_logs");
+    chatArea.innerHTML = "";
+
+    ws.close();
+    greenflag();
+
+    const openSavedOrFirst = () => {
+        const target =
+            savedChannel &&
+                state.channelsArray?.some(c => c.name === savedChannel)
+                ? savedChannel
+                : state.channelsArray?.[0]?.name;
+
+        if (target) changeChannel(target);
+    };
+
+    if (state.channelsArray?.length) {
+        openSavedOrFirst();
+    } else {
+        const wait = setInterval(() => {
+            if (state.channelsArray?.length) {
+                clearInterval(wait);
+                openSavedOrFirst();
+            }
+        }, 100);
+    }
+}
+
 function changeChannel(channel) {
     loadedCount = 0;
     if (currentObserver) currentObserver.disconnect();
     lastmsgid = null;
     additionalMessageLoad = false;
+    
+    const found = state.channelsArray.find(c => c?.name === channel)
+
+    if (found?.type === "chat") {
+        channel = found.id
+    }
+
+    const chatArea = document.getElementById("interactive_logs");
+    chatArea.innerHTML = "";
     state.currentChannel = channel;
+
+    const channelsState = settings.get("channels_state") || {};
+    channelsState[currentServer] = channel;
+    settings.set("channels_state", channelsState);
 
     document.querySelectorAll(".single_chnl").forEach((el) => {
         el.classList.toggle("active", el.id === `channel_${channel}`);
     });
 
-    const ch = state.channelsArray.find(c => c.name === channel)
+    const ch = state.channelsArray.find(c => c.name === channel);
 
     if (ch.type != "forum") {
         document.getElementById("logspane").appendChild(
@@ -1086,7 +1044,7 @@ function changeChannel(channel) {
                 action: ch ? ch.desc : "Listening to " + channel,
                 time: ""
             })
-        )
+        );
     }
 
     if (state.unread[channel]) {
@@ -1096,12 +1054,12 @@ function changeChannel(channel) {
 
     updatemainTxtArPermissions();
     renderMembers();
+
     setTimeout(() => {
         const chatArea = document.getElementById("interactive_logs");
         chatArea.scrollTop = chatArea.scrollHeight;
     }, 500);
 }
-
 function getUserColor(username) {
     const u = state?.users?.[username];
     const hex = u?.color || "#ffffff";
@@ -1218,20 +1176,6 @@ function updateUserPanel() {
     }
 }
 
-var loaderElement = document.getElementById("fullloader")
-var loader = {
-    show: () => {
-        loaderElement.style.display = 'flex';
-        loaderElement.style.opacity = '1';
-    },
-    hide: () => {
-        loaderElement.style.opacity = '0';
-        loaderElement.style.transition = 'opacity 0.5s';
-        setTimeout(() => {
-            loaderElement.style.display = 'none';
-        }, 300);
-    },
-}
 function showreplyPrompt(msg) {
 
     document.querySelectorAll('.replyingto').forEach(el => el.classList.remove('replyingto'))
@@ -1257,13 +1201,6 @@ function hidereplyPrompt() {
         banner.innerHTML = "";
     }
     document.querySelectorAll('.replyingto').forEach(el => el.classList.remove('replyingto'))
-}
-
-async function changeServer(x) {
-    currentServer = x;
-    localStorage.setItem("currentServer", currentServer);
-    ws.close();
-    greenflag();
 }
 
 function formatTyping(users) {
@@ -1314,10 +1251,6 @@ function updateTypingIndicator() {
     const text = formatTyping(activeUsers);
     container.textContent = text + getDots();
 }
-function handleMessageNotification() {
-
-}
-
 function sendTyping() {
     if (!settings.get("send_typing"))
         ws.send(JSON.stringify({ cmd: 'typing', channel: state.currentChannel }));
@@ -1326,15 +1259,6 @@ function sendTyping() {
 function greenflag() {
     connectWebSocket();
     setInterval(updateTypingIndicator, 1000);
-}
-
-function toggleEmojiMenu() {
-    const picker = document.getElementById("emojipicker");
-    if (picker.style.display != "block") {
-        picker.style.display = "block"
-    } else {
-        picker.style.display = "none"
-    }
 }
 
 function renderReactions(msg, container) {
@@ -1384,29 +1308,6 @@ function updateMessageReactions(msgId) {
         renderReactions(msg, groupContent);
     }
 }
-let currentPickerTab = 'emojis';
-let gifSearchTimer = null;
-let favoriteGifs = [];
-function switchPickerTab(tab) {
-    currentPickerTab = tab;
-
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabs = document.querySelectorAll('.picker-tab');
-
-    tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
-    tabs.forEach(t => {
-        if (t.id === `${tab}-tab`) {
-            t.classList.add('active');
-            t.style.display = 'block';
-        } else {
-            t.classList.remove('active');
-            t.style.display = 'none';
-        }
-    });
-
-    const input = document.querySelector(`#${tab}-tab input`);
-    if (input) input.focus();
-}
 
 function notify(text) {
     document.getElementById("logspane").appendChild(
@@ -1423,13 +1324,7 @@ function say(text) {
     notify(text)
 }
 
-var settings = {
-    get: () => { return 0 }, set: () => { return 0 }
-}
-
-
 function listInPane(messageList) {
-    console.log(messageList)
     if (!messageList.length) return;
 
     console.log("rendering messgaes", messageList)

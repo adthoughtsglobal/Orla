@@ -254,6 +254,7 @@ div#interactive_logs {
     overflow-y: auto;
     max-height: 50vh;
     box-shadow: 0 1px 0 rgb(var(--two));
+    word-wrap: break-word;
 
     &>* {
         padding: 1em;
@@ -502,4 +503,37 @@ img.msg_img {
     align-items: center;
     gap: .3em;
     margin-left: 1em;
+}
+
+div#servers_list {
+    display: flex;
+    flex-direction: column;
+    gap: .5em;
+
+    &>img {
+        width: 3em;
+    }
+}
+
+.context-menu {
+    position: fixed;
+    min-width: 180px;
+    background: rgb(var(--two));
+    color: #fff;
+    border: 1px solid #333;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    display: none;
+    z-index: 9999;
+    font: 14px sans-serif
+}
+
+.context-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none
+}
+
+.context-item:hover {
+    background: #2d2d2d
 }

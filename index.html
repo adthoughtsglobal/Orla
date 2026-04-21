@@ -11,16 +11,13 @@
 
 <body class="flex x">
     <div class="serverslist">
-        <div class="ind_server">
-            <img src="" alt="">
-        </div>
+        <div id="servers_list"></div>
     </div>
     <div class="cli flex fill x">
         <div class="interactive pane flex fill y">
             <div id="fullloader">
-                <h1>Orla <i>v0.1</i></h1>
                 <div class="loader"></div>
-                <img src="assets/logo_vector.svg">
+                <img src="assets/logo_vector.svg" id="loader_image">
             </div>
             <div id="interactive_logs" class="fill">
 
@@ -47,6 +44,8 @@
             </div>
         </div>
     </div>
+    <div id="contextMenu" class="context-menu"></div>
+    <script src="utility.js"></script>
     <script src="rotur.js" defer></script>
     <script src="script.js" defer></script>
     <script src="commands.js" defer></script>

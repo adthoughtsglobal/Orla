@@ -36,7 +36,7 @@ class ElementFactory {
         el.textContent = text
         return el
     }
-    
+
     static icnBtn(icon, text) {
         const el = document.createElement("a");
         el.className = "icon";
@@ -111,17 +111,17 @@ class MessageActions {
     static build(message) {
         const actions = ElementFactory.div("msg_actions")
 
-        const reply = ElementFactory.icnBtn("reply","reply")
+        const reply = ElementFactory.icnBtn("reply", "reply")
         reply.addEventListener("click", () => {
             runcmd(`reply ${message.id}`)
         })
 
-        const del = ElementFactory.icnBtn("delete","delete")
+        const del = ElementFactory.icnBtn("delete", "delete")
         del.addEventListener("click", () => {
             runcmd(`delete ${message.id}`)
         })
 
-        const copy = ElementFactory.icnBtn("content_copy","copy_id")
+        const copy = ElementFactory.icnBtn("content_copy", "copy_id")
         copy.addEventListener("click", () => {
             copy.innerText = "check"
             navigator.clipboard.writeText(message.id)
@@ -398,26 +398,78 @@ tooltip.style.background = "rgb(var(--three))"
 tooltip.style.color = "#fff"
 tooltip.style.borderRadius = "4px"
 tooltip.style.fontSize = "12px"
-tooltip.style.whiteSpace = "nowrap"
-tooltip.style.transform = "translate(-50%, -135%)"
+tooltip.style.whiteSpace = "pre-line"
 tooltip.style.transition = "opacity 0.1s ease"
 tooltip.style.opacity = "0"
 document.body.appendChild(tooltip)
 
 let active = null
+const gap = 12
+const pull = 0.22
+const offset = 18
+const drift = 8
 
 document.addEventListener("mouseover", e => {
     const el = e.target.closest("[data-tooltip]")
     if (!el) return
     active = el
-    tooltip.textContent = el.getAttribute("data-tooltip")
+    tooltip.textContent = el.dataset.tooltip.replace(/\\n/g, "\n")
     tooltip.style.opacity = "1"
 })
 
 document.addEventListener("mousemove", e => {
     if (!active) return
-    tooltip.style.left = e.clientX + "px"
-    tooltip.style.top = e.clientY + "px"
+
+    const host = active.getBoundingClientRect()
+    const rect = tooltip.getBoundingClientRect()
+    const dir = active.dataset.tooltipDirection || "top"
+
+    const cx = host.left + host.width / 2
+    const cy = host.top + host.height / 2
+
+    let x = cx
+    let y = cy
+    let tx = "-50%"
+    let ty = "-100%"
+
+    if (dir === "top" || dir === "bottom") {
+        x = cx + (e.clientX - cx) * pull
+        const half = rect.width / 2
+        if (x - half < gap) x = half + gap
+        if (x + half > innerWidth - gap) x = innerWidth - half - gap
+    }
+
+    if (dir === "top") {
+        y = host.top - offset + Math.max(-drift, Math.min(drift, (e.clientY - cy) * 0.08))
+        ty = "-100%"
+    }
+
+    if (dir === "bottom") {
+        y = host.bottom + offset + Math.max(-drift, Math.min(drift, (e.clientY - cy) * 0.08))
+        ty = "0"
+    }
+
+    if (dir === "left") {
+        x = host.left - offset + Math.max(-drift, Math.min(drift, (e.clientX - cx) * 0.08))
+        y = cy + (e.clientY - cy) * pull
+        if (y < gap) y = gap
+        if (y + rect.height > innerHeight - gap) y = innerHeight - rect.height - gap
+        tx = "-100%"
+        ty = "-50%"
+    }
+
+    if (dir === "right") {
+        x = host.right + offset + Math.max(-drift, Math.min(drift, (e.clientX - cx) * 0.08))
+        y = cy + (e.clientY - cy) * pull
+        if (y < gap) y = gap
+        if (y + rect.height > innerHeight - gap) y = innerHeight - rect.height - gap
+        tx = "0"
+        ty = "-50%"
+    }
+
+    tooltip.style.transform = `translate(${tx}, ${ty})`
+    tooltip.style.left = x + "px"
+    tooltip.style.top = y + "px"
 })
 
 document.addEventListener("mouseout", e => {
@@ -427,7 +479,6 @@ document.addEventListener("mouseout", e => {
         active = null
     }
 })
-
 function attachAutoResize(textarea, max = 300, offset = 32) {
     if (!textarea || textarea._autoResizeAttached) return;
 
@@ -438,3 +489,109 @@ function attachAutoResize(textarea, max = 300, offset = 32) {
 
     textarea._autoResizeAttached = true;
 }
+document.addEventListener("DOMContentLoaded", () => {
+    const localServers = settings.get("servers_index") || [];
+    const list = document.getElementById("servers_list");
+
+    const sName = "Direct Messages";
+    const sIcon = "assets/logo_vector.svg";
+    const sURL = "wss://dms.mistium.com";
+
+    const filtered = localServers.filter(server => server.url !== sURL);
+
+    const servers = [
+        {
+            name: sName,
+            icon: sIcon,
+            url: sURL
+        },
+        ...filtered
+    ];
+
+    settings.set("servers_index", servers);
+
+    servers.forEach(server => {
+        const img = document.createElement("img");
+        img.className = "server_shortcut";
+        img.dataset.tooltip = server.name + "\n" + server.url;
+        img.dataset.tooltipDirection = "right";
+        img.dataset.context = "server";
+        img.addEventListener("click", () => {
+            runcmd("cls");
+            runcmd("server " + server.url);
+            if (server.url == sURL) {
+                setTimeout(() => {
+                    runcmd("ls")
+                }, 3000);
+            }
+        });
+        img.src = server.icon || "";
+        list.appendChild(img);
+    });
+});
+
+const menu = document.getElementById("contextMenu")
+
+const menus = {
+    server: [
+        { text: "Open Server", action: el => el.click },
+        { text: "Copy URL", action: el => console.log("delete server", el) },
+        { text: "Reload Icon", action: el => el.src = el.src },
+        { text: "Delete Server", action: el => console.log("delete server", el) }
+    ],
+    message: [
+        { text: "Reply", action: el => console.log("reply", el) },
+        { text: "Edit", action: el => console.log("edit", el) },
+        { text: "Delete", action: el => console.log("delete message", el) }
+    ],
+    default: [
+        { text: "Refresh", action: el => location.reload() }
+    ]
+}
+
+let currentTarget = null
+
+function buildMenu(type, target) {
+    menu.innerHTML = ""
+    const items = menus[type] || menus.default
+
+    items.forEach(item => {
+        const div = document.createElement("div")
+        div.className = "context-item"
+        div.textContent = item.text
+        div.onclick = () => {
+            item.action(target)
+            hideMenu()
+        }
+        menu.appendChild(div)
+    })
+}
+
+function showMenu(x, y) {
+    menu.style.display = "block"
+    const w = menu.offsetWidth
+    const h = menu.offsetHeight
+    const px = Math.min(x, window.innerWidth - w - 8)
+    const py = Math.min(y, window.innerHeight - h - 8)
+    menu.style.left = px + "px"
+    menu.style.top = py + "px"
+}
+
+function hideMenu() {
+    menu.style.display = "none"
+}
+
+document.addEventListener("contextmenu", e => {
+    const target = e.target.closest("[data-context]")
+    if (!target) return hideMenu()
+
+    e.preventDefault()
+    currentTarget = target
+    const type = target.dataset.context
+    buildMenu(type, target)
+    showMenu(e.clientX, e.clientY)
+})
+
+document.addEventListener("click", hideMenu)
+window.addEventListener("resize", hideMenu)
+document.addEventListener("scroll", hideMenu, true)
