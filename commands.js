@@ -94,7 +94,7 @@ async function processCommand() {
                 .map((c, i) => {
                     const idx = String(i).padStart(2, "0")
                     const label = c.name
-                    const name = c.active ? `<strong>${label}</strong>` : label
+                    const name = c.name == state.currentChannel ? `<strong>${label}</strong>` : label
                     return `${idx} | ${name}`
                 })
 
@@ -173,6 +173,26 @@ async function processCommand() {
             break;
         }
         case "help": {
+            if (output.params[0] == "pane") {
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "wand_stars",
+                        action: `
+                       Orla Pane Help<br>
+<ul>
+<li><strong>pane</strong>: closes the pane</li>
+<b>Pane subcommands</b>
+<li><strong>search</strong> [keywords]: searches the current channel</li>
+<li><strong>members</strong>: shows a list of all members in the current server</li>
+<li><strong>pinned</strong>: shows all pinned messages in the current channel</li>
+<li><strong>state</strong> [variable]: outputs the value of an Orla state variable</li>
+</ul>
+                        `,
+                        time: ""
+                    })
+                )
+                break;
+            }
             document.getElementById("logspane").appendChild(
                 MessageBuilder.action({
                     icon: "wand_stars",
@@ -180,18 +200,18 @@ async function processCommand() {
                        Orla Client: commands<br>
 <ul>
 <li><strong>online</strong>: shows a list of online users</li>
-<li><strong>ls</strong> [*threads]: lists all channels or threads in the current channel with IDs</li>
+<li><strong>ls</strong>: lists all channels with IDs</li>
 <li><strong>cd</strong> [channel_name/local_id]: navigate to a channel or display channel name</li>
 <li><strong>profile</strong> [*username]: displays user data</li>
 <b>Orla Specific:</b>
 <li><strong>help</strong>: shows this message</li>
 <li><strong>cls</strong>: clear command logs</li>
-<li><strong>pane</strong> [settings/stats/info]: opens a secondary pane</li>
+<li><strong>pane</strong> [subcommand]: opens a secondary pane</li>
 <b>Rotur:</b>
 <li><strong>transfer</strong> [username],[amount]: send credits to user</li>
 <li><strong>balance</strong> [*username]: shows rotur credit balance</li>
 </ul>
-* = optional
+* = optional &nbsp; Use help [pane] for pane help.
                         `,
                     time: ""
                 })

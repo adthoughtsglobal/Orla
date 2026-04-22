@@ -1,15 +1,8 @@
-if (settings.get("currentServer")) {
-    currentServer = settings.get("currentServer");
-} else {
-    settings.set("currentServer", "wss://chats.mistium.com");
-    currentServer = settings.get("currentServer");
-}
-
 const customEmojisByServer = new Map();
 let ws = null;
 
 let state = {
-    _currentChannel: "general",
+    _currentChannel: "cmds",
     members_list_shown: true,
     show_blocked_msgs: true,
     server: {},
@@ -103,6 +96,20 @@ function attachWsHandlers() {
                 document
                     .getElementById("loader_image")
                     ?.setAttribute("src", state.server.icon || "");
+                loader.show();
+                document.getElementById("logspane").appendChild(
+                    MessageBuilder.action({
+                        icon: "cloud",
+                        action: `
+                            ${state.server.banner ? `<img src="${state.server.banner}" style="width:100%; max-width: 20em">` : ""}
+                            <h1 style="margin:.3em 0;">${state.server.name ?? ""}</h1>
+                            <span>${state.server.url ?? ""}</span>
+                        `
+                    })
+                );
+                setTimeout(() => {
+                    runcmd("ls")
+                }, 2500);
 
                 const servers = settings.get("servers_index") || [];
 
@@ -432,7 +439,6 @@ function listChannels(channelList) {
                 name: channel.name || "",
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
-                active: channel.name === state.currentChannel,
                 type: "text"
             })
         } else if (channel.type === "chat") {
@@ -441,7 +447,6 @@ function listChannels(channelList) {
                 name: channel.display_name || channel.name || "",
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
-                active: channel.name === state.currentChannel,
                 type: "chat"
             })
         } else if (channel.type === "forum") {
@@ -946,13 +951,13 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
     const chatArea = document.getElementById("interactive_logs");
     if (!chatArea) return;
 
-    state.additionalMessageLoad = false;
+    loader.hide();
 
     const prev = chatArea.scrollHeight;
 
     const frag = document.createDocumentFragment();
 
-    if (chatArea.scrollHeight > chatArea.clientHeight || chatArea.firstChild) {
+    if (state.hasMoreMessages === true) {
         frag.appendChild(makeLoadTrigger(channel, limit));
     }
 
@@ -962,15 +967,13 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
     }
 
     const first = chatArea.firstChild;
+    if (first) chatArea.insertBefore(frag, first);
+    else chatArea.appendChild(frag);
 
-    if (first) {
-        chatArea.insertBefore(frag, first);
-    } else {
-        chatArea.appendChild(frag);
-    }
-
-    const next = chatArea.scrollHeight;
-    chatArea.scrollTop += next - prev;
+    requestAnimationFrame(() => {
+        const next = chatArea.scrollHeight;
+        chatArea.scrollTop += next - prev;
+    });
 
     loadedCount += messageList.length;
 
@@ -1016,7 +1019,7 @@ function changeChannel(channel) {
     if (currentObserver) currentObserver.disconnect();
     lastmsgid = null;
     additionalMessageLoad = false;
-    
+
     const found = state.channelsArray.find(c => c?.name === channel)
 
     if (found?.type === "chat") {

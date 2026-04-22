@@ -141,6 +141,7 @@ class MessageBuilder {
         const root = ElementFactory.div("msg")
         if (connected) root.classList.add("connected")
         root.setAttribute("data-id", message.id)
+        root.dataset.context = "message";
 
         const data = ElementFactory.div("data")
 
@@ -489,10 +490,10 @@ function attachAutoResize(textarea, max = 300, offset = 32) {
 
     textarea._autoResizeAttached = true;
 }
-document.addEventListener("DOMContentLoaded", () => {
+function loadServers() {
     const localServers = settings.get("servers_index") || [];
     const list = document.getElementById("servers_list");
-
+    list.innerHTML = "";
     const sName = "Direct Messages";
     const sIcon = "assets/logo_vector.svg";
     const sURL = "wss://dms.mistium.com";
@@ -516,28 +517,49 @@ document.addEventListener("DOMContentLoaded", () => {
         img.dataset.tooltip = server.name + "\n" + server.url;
         img.dataset.tooltipDirection = "right";
         img.dataset.context = "server";
+        img.dataset.name = server.name;
+        img.dataset.url = server.url;
         img.addEventListener("click", () => {
             runcmd("cls");
             runcmd("server " + server.url);
-            if (server.url == sURL) {
-                setTimeout(() => {
-                    runcmd("ls")
-                }, 3000);
-            }
         });
         img.src = server.icon || "";
         list.appendChild(img);
     });
+}
+document.addEventListener("DOMContentLoaded", () => {
+    loadServers();
+    if (settings.get("currentServer")) {
+        currentServer = settings.get("currentServer");
+    } else {
+        settings.set("currentServer", "wss://dms.mistium.com");
+        currentServer = settings.get("currentServer");
+    }
 });
+
+function deleteServer(url) {
+    const localServers = settings.get("servers_index") || [];
+
+    const updated = localServers.filter(server => server.url !== url);
+
+    settings.set("servers_index", updated);
+
+    loadServers()
+}
 
 const menu = document.getElementById("contextMenu")
 
 const menus = {
     server: [
         { text: "Open Server", action: el => el.click },
-        { text: "Copy URL", action: el => console.log("delete server", el) },
+        {
+            text: "Copy URL", action: el => {
+                navigator.clipboard.writeText(text);
+                say("Copied URL!")
+            }
+        },
         { text: "Reload Icon", action: el => el.src = el.src },
-        { text: "Delete Server", action: el => console.log("delete server", el) }
+        { text: "Delete Server", action: el => deleteServer(el.dataset.url) }
     ],
     message: [
         { text: "Reply", action: el => console.log("reply", el) },

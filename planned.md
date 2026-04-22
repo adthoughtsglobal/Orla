@@ -38,17 +38,10 @@ Lists pane: lists stuff like members, message search results, pinned messages,
 To Do
 - copy message id
 - mentions and pings
-- message md formatting
 - channel links
-- role colors
 - reply
-- message in threads
 - add and remove reactions
-- per user message grouping
-- attatchments
 - rate limit handling
-- dms server
-- dms by default
 - server bar and server switching
 - server leaving and management
 - server discovery
