@@ -17,7 +17,7 @@ html {
     --hightext: rgb(191, 229, 254);
 
     --text: rgb(240, 240, 240);
-}
+}uuuuuuuuuuuu
 
 * {
     scrollbar-width: thin;
@@ -514,26 +514,45 @@ div#servers_list {
         width: 3em;
     }
 }
+#autocomplete_list {
+    display: flex;
+    flex-direction: column;
+}
+
+.autocomplete_item {
+    padding: .3em 1em;
+    white-space: pre;
+    &.active {
+        background-color: var(--highone);
+    }
+}
+
+@keyframes menu {
+    0% {
+        transform: translate(0, -10%);
+        opacity: 0;
+    }
+}
 
 .context-menu {
     position: fixed;
     min-width: 180px;
     background: var(--two);
     color: #fff;
-    border: 1px solid #333;
+    border: 1px solid var(--three);
     box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
     display: none;
+    font-family: inherit;
     z-index: 9999;
-    font: 14px sans-serif
+    animation: menu .3s cubic-bezier(0.075, 0.82, 0.165, 1);
 }
 
 .context-item {
     padding: 10px 12px;
-    border-radius: 6px;
     cursor: pointer;
     user-select: none
 }
 
 .context-item:hover {
-    background: #2d2d2d
+    background: var(--three)
 }

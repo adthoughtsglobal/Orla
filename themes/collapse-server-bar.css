@@ -1,0 +1,28 @@
+.serverslist {
+    width: .5em;
+    position: relative;
+    transition: .3s cubic-bezier(0.075, 0.82, 0.165, 1);
+
+    &>* {
+        visibility: hidden;
+    }
+    &::after {
+        content: "Servers";
+        writing-mode: vertical-lr;
+        text-orientation:upright;
+        right: 5px;
+        top: calc(50vh - 8em);
+        position: absolute;
+            opacity: 1;
+            transition: .3s;
+    }
+    &:hover {
+        width: 3em;
+        &>* {
+            visibility: visible;
+        }
+        &::after {
+            opacity: 0;
+        }
+    }
+}
