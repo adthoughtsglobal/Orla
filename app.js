@@ -980,40 +980,73 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
     attemptResolveAllMissingReplies();
 }
 async function changeServer(x) {
+    console.log("changeServer called with:", x);
+
     currentServer = x;
+    console.log("currentServer set to:", currentServer);
+
     settings.set("currentServer", currentServer);
+    console.log("settings updated: currentServer");
 
     const channelsState = settings.get("channels_state") || {};
+    console.log("channelsState:", channelsState);
+
     const savedChannel = channelsState[currentServer];
+    console.log("savedChannel for server:", savedChannel);
 
     const chatArea = document.getElementById("interactive_logs");
-    chatArea.innerHTML = "";
+    console.log("chatArea element:", chatArea);
 
+    if (chatArea) {
+        chatArea.innerHTML = "";
+        console.log("chatArea cleared");
+    } else {
+        console.warn("chatArea not found");
+    }
+
+    console.log("closing websocket...");
     ws.close();
+
+    console.log("calling greenflag()");
     greenflag();
 
     const openSavedOrFirst = () => {
+        console.log("openSavedOrFirst triggered");
+
         const target =
             savedChannel &&
-                state.channelsArray?.some(c => c.name === savedChannel)
+            state.channelsArray?.some(c => c.name === savedChannel)
                 ? savedChannel
                 : state.channelsArray?.[0]?.name;
 
-        if (target) changeChannel(target);
+        console.log("resolved target channel:", target);
+        console.log("channelsArray:", state.channelsArray);
+
+        if (target) {
+            console.log("changing channel to:", target);
+            changeChannel(target);
+        } else {
+            console.warn("no valid target channel found");
+        }
     };
 
     if (state.channelsArray?.length) {
+        console.log("channels already available:", state.channelsArray.length);
         openSavedOrFirst();
     } else {
+        console.log("channels not ready, waiting...");
+
         const wait = setInterval(() => {
+            console.log("polling channelsArray...", state.channelsArray);
+
             if (state.channelsArray?.length) {
+                console.log("channels loaded:", state.channelsArray.length);
                 clearInterval(wait);
                 openSavedOrFirst();
             }
         }, 100);
     }
 }
-
 function changeChannel(channel) {
     loadedCount = 0;
     if (currentObserver) currentObserver.disconnect();

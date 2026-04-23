@@ -1,0 +1,13 @@
+:root {
+    --one: rgb(0 0 0);
+    --two: rgb(3 3 3);
+    --three: rgb(16 58 29);
+    --four: rgb(3 108 30);
+    --five: rgb(0 188 63);
+    --highone: rgb(30 117 4);
+    --highlight: rgb(165 249 177);
+    --highlighttext: rgb(19 110 15);
+    --highdark: rgb(15 110 33);
+    --hightext: rgb(191, 229, 254);
+    --text: rgb(0 255 115);
+}

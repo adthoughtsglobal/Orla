@@ -1,0 +1,50 @@
+:root {
+    --one: rgb(25, 25, 26);
+    --two: rgb(35, 36, 37);
+    --three: rgb(47, 49, 49);
+    --four: rgb(60, 60, 60);
+    --five: rgb(140, 143, 141);
+
+    --highone: rgb(4, 76, 117);
+    --highlight: rgb(165, 195, 249);
+    --highlighttext: rgb(15, 50, 110);
+
+    --highdark: rgb(15, 50, 110);
+    --hightext: rgb(191, 229, 254);
+
+    --text: rgb(240, 240, 240);
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: var(--two);
+}
+
+.msg {
+    background: var(--one);
+    margin: .5em;
+    border-radius: 1em;
+}
+
+img {
+    border-radius: .5em;
+}
+
+.msg {
+    &:hover {
+        background-color: var(--three);
+    }
+    & .time {
+        opacity: 0;
+    }
+}
+
+
+.inputs {
+    &>textarea,
+    &>input {
+        margin: .5em;
+        background-color: var(--three);
+        border-radius: 1em;
+    }
+}

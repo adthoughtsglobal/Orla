@@ -3,25 +3,25 @@ html {
 }
 
 :root {
-    --one: 25, 25, 26;
-    --two: 35, 36, 37;
-    --three: 47, 49, 49;
-    --four: 60, 60, 60;
-    --five: 140, 143, 141;
+    --one: rgb(25, 25, 26);
+    --two: rgb(35, 36, 37);
+    --three: rgb(47, 49, 49);
+    --four: rgb(60, 60, 60);
+    --five: rgb(140, 143, 141);
 
-    --highone: 4, 76, 117;
-    --highlight: 165, 195, 249;
-    --highlighttext: 15, 50, 110;
+    --highone: rgb(4, 76, 117);
+    --highlight: rgb(165, 195, 249);
+    --highlighttext: rgb(15, 50, 110);
 
-    --highdark: 15, 50, 110;
-    --hightext: 191, 229, 254;
+    --highdark: rgb(15, 50, 110);
+    --hightext: rgb(191, 229, 254);
 
-    --text: 240, 240, 240;
+    --text: rgb(240, 240, 240);
 }
 
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(var(--three)) transparent;
+    scrollbar-color: var(--three) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -30,7 +30,7 @@ html {
 }
 
 *::-webkit-scrollbar-thumb {
-    background: rgb(var(--three));
+    background: var(--three);
     border-radius: 6px;
 }
 
@@ -42,8 +42,8 @@ body {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgb(var(--one));
-    color: rgb(var(--text));
+    background-color: var(--one);
+    color: var(--text);
     font-family: 'Courier New', Courier, monospace;
     height: 100vh;
     width: 100vw;
@@ -70,9 +70,9 @@ body {
 }
 
 .serverslist {
-    background-color: rgb(var(--two));
+    background-color: var(--two);
     padding: .5em;
-    border-right: 1px solid rgb(var(--three));
+    border-right: 1px solid var(--three);
 }
 
 @font-face {
@@ -104,7 +104,7 @@ textarea {
 
 .pane {
     min-width: 200px;
-    box-shadow: 1px 0 0 rgb(var(--two));
+    box-shadow: 1px 0 0 var(--two);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -126,7 +126,7 @@ textarea {
     }
 
     &:hover {
-        background-color: rgb(var(--two));
+        background-color: var(--two);
 
 
         &.connected .data,
@@ -210,7 +210,7 @@ textarea {
 }
 
 .inputs {
-    background: rgb(var(--two));
+    background: var(--two);
     display: flex;
 
     &>textarea,
@@ -225,7 +225,7 @@ textarea {
         padding: 1em;
         flex: 1;
         min-width: 0;
-        box-shadow: 0 -1px 0 rgb(var(--three));
+        box-shadow: 0 -1px 0 var(--three);
     }
 }
 
@@ -253,14 +253,14 @@ div#interactive_logs {
 #listspane {
     overflow-y: auto;
     max-height: 50vh;
-    box-shadow: 0 1px 0 rgb(var(--two));
+    box-shadow: 0 1px 0 var(--two);
     word-wrap: break-word;
 
     &>* {
         padding: 1em;
 
         &:nth-child(even) {
-            background-color: rgb(var(--two));
+            background-color: var(--two);
         }
     }
 }
@@ -316,18 +316,18 @@ div#interactive_logs {
 }
 
 a[href] {
-    color: rgb(var(--highlight));
+    color: var(--highlight);
     text-decoration: underline;
 }
 
 pre {
     padding: 1em;
-    background: rgb(var(--one));
+    background: var(--one);
 }
 
 strong,
 .super {
-    color: rgb(var(--highlight));
+    color: var(--highlight);
 }
 
 #fullloader {
@@ -336,7 +336,7 @@ strong,
     right: 0;
     width: 100%;
     height: 100%;
-    background-color: rgb(var(--one));
+    background-color: var(--one);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -414,13 +414,13 @@ ul {
 img.pfp {
     width: 7em;
     height: 7em;
-    border: 1px solid rgb(var(--three));
+    border: 1px solid var(--three);
     position: relative;
 }
 
 .seebottom {
     padding: 6px 10px;
-    background-color: rgb(var(--three));
+    background-color: var(--three);
     width: fit-content;
     right: 1em;
     top: 1em;
@@ -463,7 +463,7 @@ img.pfp {
     border-radius: 3px;
     border-left: 1px solid;
     border-top: 1px solid;
-    border-color: rgb(var(--five));
+    border-color: var(--five);
     transform: translate(7px, 6px);
     margin-right: 5px;
 }
@@ -472,7 +472,7 @@ img.msg_img {
     max-height: 13em;
     max-width: 500px;
     margin: .5em 0;
-    border: 1px solid rgb(var(--three));
+    border: 1px solid var(--three);
 }
 
 .reply-preview {
@@ -518,7 +518,7 @@ div#servers_list {
 .context-menu {
     position: fixed;
     min-width: 180px;
-    background: rgb(var(--two));
+    background: var(--two);
     color: #fff;
     border: 1px solid #333;
     box-shadow: 0 10px 30px rgba(0, 0, 0, .35);

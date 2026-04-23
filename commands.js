@@ -166,11 +166,24 @@ async function processCommand() {
             break;
         }
         case "theme": {
-            const link = document.createElement('link')
-            link.rel = 'stylesheet'
+            if (!output.params[0]) {
+                document.getElementById("logspane").appendChild(
+                MessageBuilder.action({
+                    icon: "brush",
+                    action: `Available themes: bright, crt, cute-dark, cute-light, green, neon`,
+                    time: ""
+                })
+            )
+            }
+            let link = document.getElementById('theme-stylesheet')
+            if (!link) {
+                link = document.createElement('link')
+                link.id = 'theme-stylesheet'
+                link.rel = 'stylesheet'
+                document.head.appendChild(link)
+            }
             link.href = 'themes/' + output.params[0] + '.css'
-            document.head.appendChild(link)
-            break;
+            break
         }
         case "help": {
             if (output.params[0] == "pane") {
