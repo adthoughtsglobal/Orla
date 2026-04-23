@@ -112,25 +112,22 @@ class MessageActions {
         const actions = ElementFactory.div("msg_actions")
 
         const reply = ElementFactory.icnBtn("reply", "reply")
-        reply.addEventListener("click", () => {
-            runcmd(`reply ${message.id}`)
-        })
+        reply.dataset.action = "reply"
+        reply.dataset.id = message.id
 
         const del = ElementFactory.icnBtn("delete", "delete")
-        del.addEventListener("click", () => {
-            runcmd(`delete ${message.id}`)
-        })
+        del.dataset.action = "delete"
+        del.dataset.id = message.id
 
-        const copy = ElementFactory.icnBtn("content_copy", "copy_id")
-        copy.addEventListener("click", () => {
-            copy.innerText = "check"
-            navigator.clipboard.writeText(message.id)
-            setTimeout(() => {
-                copy.innerText = "content_copy"
-            }, 2000)
-        })
+        const edit = ElementFactory.icnBtn("edit", "edit")
+        edit.dataset.action = "edit"
+        edit.dataset.id = message.id
 
-        actions.append(reply, del, copy)
+        const copy = ElementFactory.icnBtn("content_copy", "copy")
+        copy.dataset.action = "copy"
+        copy.dataset.id = message.id
+
+        actions.append(reply, del, edit, copy)
         return actions
     }
 }
@@ -529,6 +526,32 @@ function loadServers() {
 }
 document.addEventListener("DOMContentLoaded", () => {
     loadServers();
+    document.addEventListener("click", e => {
+        const el = e.target.closest(".reply-excerpt");
+        if (!el) return;
+        const mid = el.dataset.ref;
+        console.log(mid)
+        if (mid) jumpToMessage(mid);
+    });
+
+    document.addEventListener("click", e => {
+        const btn = e.target.closest("[data-action]")
+        if (!btn) return
+
+        const id = btn.dataset.id
+        const action = btn.dataset.action
+
+        if (action === "reply") runcmd(`reply ${id}`)
+        if (action === "delete") runcmd(`delete ${id}`)
+        if (action === "edit") runcmd(`edit ${id}`)
+        if (action === "copy") {
+            btn.innerText = "check"
+            navigator.clipboard.writeText(id)
+            setTimeout(() => {
+                btn.innerText = "content_copy"
+            }, 2000)
+        }
+    })
 });
 
 function deleteServer(url) {
@@ -564,7 +587,6 @@ const menus = {
         { text: "Refresh", action: el => location.reload() }
     ]
 }
-
 let currentTarget = null
 
 function buildMenu(type, target) {
@@ -594,6 +616,10 @@ function showMenu(x, y) {
 }
 
 function hideMenu() {
+    if (currentTarget) {
+        currentTarget.classList.remove("context-active")
+        currentTarget = null
+    }
     menu.style.display = "none"
 }
 
@@ -602,7 +628,14 @@ document.addEventListener("contextmenu", e => {
     if (!target) return hideMenu()
 
     e.preventDefault()
+
+    if (currentTarget && currentTarget !== target) {
+        currentTarget.classList.remove("context-active")
+    }
+
     currentTarget = target
+    currentTarget.classList.add("context-active")
+
     const type = target.dataset.context
     buildMenu(type, target)
     showMenu(e.clientX, e.clientY)

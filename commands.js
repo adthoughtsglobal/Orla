@@ -129,9 +129,9 @@ commandinput.addEventListener("keyup", async (event) => {
     }
 })
 
-// commandinput.addEventListener("blur", () => {
-//     setTimeout(() => { autocompleteList.innerHTML = "" }, 100)
-// })
+commandinput.addEventListener("blur", () => {
+    setTimeout(() => { autocompleteList.innerHTML = "" }, 100)
+})
 
 commandinput.addEventListener("keyup", async (event) => {
     if (event.key === "Enter" && submitOnRelease) {
@@ -396,6 +396,10 @@ const commands = {
 
     delete: async (output) => {
         ws.send(JSON.stringify({ cmd: "message_delete", channel: state._currentChannel, id: output.params[0] }))
+    },
+
+    edit: async (output) => {
+        editMessage(output.params[0])
     },
 
     pane: async (output) => {

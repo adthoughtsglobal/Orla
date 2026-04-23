@@ -17,6 +17,7 @@ let state = {
     unread: {},
     channels: {},
     busy: false,
+    message_ontime_limit: 20,
     set currentChannel(value) {
         this._currentChannel = value;
         settings.set("currentServer", currentServer);
@@ -39,6 +40,7 @@ let state = {
                 ws.send(JSON.stringify({
                     cmd: "messages_get",
                     channel: value,
+                    limit: this.message_ontime_limit
                 }));
             }
         }
@@ -235,13 +237,21 @@ function attachWsHandlers() {
                     state.messages[mid].content = data.content;
                     state.messages[mid].edited = true;
                 }
-                const node = document.querySelector(
-                    `.message[data-id="${CSS.escape(data.id)}"] .content`,
+                const message = document.querySelector(
+                    `.msg[data-id="${CSS.escape(data.id)}"]`
                 );
-                if (node)
-                    node.innerHTML =
+
+                if (!message) return;
+                console.log("elefound")
+                message.classList.remove("pulse");
+
+                const textNode = message.querySelector(".contains_text");
+
+                if (textNode) {
+                    textNode.innerHTML =
                         formatMessageContent(data.content) +
-                        '<span class="edited-tag">(edited)</span>';
+                        '<span class="edited-tag icon">edit</span>';
+                }
                 if (state.editing && state.editing.id === mid) cancelEdit();
 
                 document.getElementById("logspane").appendChild(
@@ -669,7 +679,7 @@ function renderReplyExcerpt(message) {
         }
         return `<div class="reply-excerpt missing" data-ref="${escapeHTML(replyId)}"><div class="rplarrow"></div>Replying to unknown message</div>`;
     }
-    if (!state.messages[replyId]) state.messages[replyId] = ref; // ensure cached
+    if (!state.messages[replyId]) state.messages[replyId] = ref;
     const preview = escapeHTML(stripHtml(ref.content || "").slice(0, 120));
     const colorRaw = getUserColor(ref.user || hintedUser || "");
     const color = colorRaw;
@@ -787,7 +797,7 @@ function renderVisible(message, prevmsg) {
 
     const content = message.content ?? '';
     const text = (typeof formatMessageContent === 'function' ? formatMessageContent(content) : content)
-        + (message.edited ? ' (edited)' : '');
+        + (message.edited ? ' <span class="edited-tag icon">edit</span>' : '');
 
     if (typeof MessageBuilder?.message !== 'function') {
         const fallback = document.createElement('div');
@@ -919,9 +929,8 @@ function updateMissedIndicator(count) {
 
 let loadedCount = 0;
 let currentObserver = null;
-function makeLoadTrigger(channelName, limit) {
+function makeLoadTrigger(channelName) {
     const channel = state.channelsArray.find(c => c.name === channelName);
-    console.log(327, channel, channelName)
     const t = document.createElement("div");
     t.style.height = "1px";
 
@@ -930,15 +939,14 @@ function makeLoadTrigger(channelName, limit) {
     let seen = false;
     const io = new IntersectionObserver(e => {
         const v = e[0].isIntersecting;
-        if (v && !seen) {
+        if (v && !seen && state.hasMoreMessages !== false) {
             seen = true;
             setTimeout(() => {
                 if (seen) {
-                    console.log("rendering 888", channel)
                     ws.send(JSON.stringify({
                         cmd: "messages_get",
                         channel: channelName,
-                        limit,
+                        limit: state.message_ontime_limit,
                         start: loadedCount
                     }));
                 }
@@ -952,8 +960,19 @@ function makeLoadTrigger(channelName, limit) {
 
     return t;
 }
-function listMessages(messageList, channel = state._currentChannel, limit = 100) {
-    if (!messageList?.length) return;
+function listMessages(messageList, channel = state._currentChannel) {
+    if (!messageList?.length) {
+        state.hasMoreMessages = false;
+        if (currentObserver) currentObserver.disconnect();
+        return;
+    }
+
+    if (messageList.length < state.message_ontime_limit) {
+        state.hasMoreMessages = false;
+        if (currentObserver) currentObserver.disconnect();
+    }
+
+    loadedCount += messageList.length;
 
     const chatArea = document.getElementById("interactive_logs");
     if (!chatArea) return;
@@ -964,9 +983,9 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
 
     const frag = document.createDocumentFragment();
 
-    if (state.hasMoreMessages === true) {
-        frag.appendChild(makeLoadTrigger(channel, limit));
-    }
+    // if (state.hasMoreMessages === true) {
+        frag.appendChild(makeLoadTrigger(channel));
+    // }
 
     for (const m of messageList) {
         const n = renderMessage(m);
@@ -1390,3 +1409,57 @@ window.addEventListener("focus", () => {
 })
 
 updateBusy()
+
+function editMessage(mid) {
+    const node = document.querySelector(`.msg[data-id="${CSS.escape(mid)}"]`);
+    if (!node) return;
+
+    node.classList.add("editing");
+    state.editing = { id: mid };
+
+    const textEl = node.querySelector(".contains_text>div");
+    if (!textEl) return;
+
+    textEl.style.display = "none";
+
+    const textarea = document.createElement("textarea");
+    textarea.value = state.messages[mid].content;
+    textarea.className = "edit_area";
+
+    textEl.insertAdjacentElement("afterend", textarea);
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    function cleanup(save) {
+        if (save) {
+            const val = textarea.value.trim();
+            if (val && val != state.messages[mid].content) {
+                state.messages[mid].content = val;
+                textEl.textContent = val;
+                node.classList.add("pulse");
+                ws.send(JSON.stringify({ cmd: "message_edit", channel: state._currentChannel, id: mid, content: val }));
+            }
+        }
+        textarea.remove();
+        textEl.style.display = "";
+        node.classList.remove("editing");
+        state.editing = null;
+    }
+
+    textarea.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+            cleanup(false);
+        } else if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            cleanup(true);
+        }
+    });
+}
+
+function jumpToMessage(id) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("pulseh");
+    setTimeout(() => { el.classList.remove("pulseh") }, 2000)
+}

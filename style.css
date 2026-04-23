@@ -17,7 +17,7 @@ html {
     --hightext: rgb(191, 229, 254);
 
     --text: rgb(240, 240, 240);
-}uuuuuuuuuuuu
+}
 
 * {
     scrollbar-width: thin;
@@ -121,6 +121,13 @@ textarea {
     contain-intrinsic-size: 200px;
 
 
+    &.editing .contains_text {
+        &::after {
+            content: "click esc to cancel edit, enter to update";
+            opacity: .5;
+        }
+    }
+
     &:last-child {
         margin-bottom: 1em;
     }
@@ -206,6 +213,24 @@ textarea {
             height: 2em;
             transform: scale(1.5);
         }
+    }
+}
+
+@keyframes pulse {
+    50% {
+        opacity: .5;
+    }
+}
+
+.pulse {
+    animation: pulse .5s infinite;
+}
+
+.pulseh {
+    animation: pulse .5s infinite;
+    background-color: var(--highdark);
+    &:hover {
+        background-color: var(--highone);
     }
 }
 
@@ -458,12 +483,10 @@ img.pfp {
 }
 
 .rplarrow {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    border-left: 1px solid;
-    border-top: 1px solid;
-    border-color: var(--five);
+    width: 15px;
+    height: 14px;
+    border-radius: 0;
+    box-shadow: -2px -2px 0px -1px var(--five);
     transform: translate(7px, 6px);
     margin-right: 5px;
 }
@@ -514,6 +537,7 @@ div#servers_list {
         width: 3em;
     }
 }
+
 #autocomplete_list {
     display: flex;
     flex-direction: column;
@@ -522,6 +546,7 @@ div#servers_list {
 .autocomplete_item {
     padding: .3em 1em;
     white-space: pre;
+
     &.active {
         background-color: var(--highone);
     }
@@ -555,4 +580,26 @@ div#servers_list {
 
 .context-item:hover {
     background: var(--three)
+}
+
+.edit_area {
+    background: var(--two);
+    color: inherit;
+    font-size: inherit;
+    font-family: inherit;
+    padding: .5em;
+    border: 1px solid var(--four);
+    outline: 0;
+    width: calc(100% - 1em);
+}
+
+.edited-tag {
+    opacity: .5;
+    display: inline-block;
+    transform: translateY(2px);
+    margin-left: .5em;
+}
+
+.context-active {
+    border: 1px solid var(--highone);
 }
