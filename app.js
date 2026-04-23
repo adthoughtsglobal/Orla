@@ -2,7 +2,7 @@ const customEmojisByServer = new Map();
 let ws = null;
 
 let state = {
-    _currentChannel: "cmds",
+    _currentChannel: null,
     members_list_shown: true,
     show_blocked_msgs: true,
     server: {},
@@ -19,6 +19,7 @@ let state = {
     busy: false,
     set currentChannel(value) {
         this._currentChannel = value;
+        settings.set("currentServer", currentServer);
         const ch = this.channelsArray.find(c => c.name === value);
 
         if (ws?.readyState === 1) {
@@ -142,13 +143,6 @@ function attachWsHandlers() {
                 ws.send(JSON.stringify({ cmd: "channels_get" }));
                 ws.send(JSON.stringify({ cmd: "users_list" }));
                 ws.send(JSON.stringify({ cmd: "users_online" }));
-                ws.send(
-                    JSON.stringify({
-                        cmd: "messages_get",
-                        channel: state.currentChannel,
-                        limit: 100
-                    }),
-                );
                 setTimeout(loader.hide, 500);
                 const input = document.getElementById("mainTxtAr");
                 if (input && !input._listenerAttached) {
@@ -430,7 +424,7 @@ function showError(msg) {
     say(msg, "failed");
 }
 function listChannels(channelList) {
-    const result = []
+    const result = [];
 
     for (const channel of channelList) {
         if (channel.type === "text") {
@@ -440,7 +434,7 @@ function listChannels(channelList) {
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
                 type: "text"
-            })
+            });
         } else if (channel.type === "chat") {
             result.push({
                 id: channel.name || "",
@@ -448,20 +442,33 @@ function listChannels(channelList) {
                 desc: channel.description || "",
                 unread: state.unread[channel.name] || 0,
                 type: "chat"
-            })
+            });
         } else if (channel.type === "forum") {
             result.push({
                 id: channel.name || "",
                 name: channel.name || "thread",
                 type: "forum",
                 threads: channel.threads
-            })
+            });
         } else if (channel.type === "separator") {
-            result.push({ type: "separator" })
+            result.push({ type: "separator" });
         }
     }
 
-    state.channelsArray = result
+    state.channelsArray = result;
+
+    const channelsState = settings.get("channels_state") || {};
+    const saved = channelsState[currentServer];
+
+    let target = null;
+
+    if (saved && result.some(c => c.name === saved || c.id === saved)) {
+        target = saved;
+    } else if (result.length) {
+        target = result[0].name;
+    }
+
+    if (target) changeChannel(target);
 }
 
 function generateValidatorAndAuth(vKey, authTok) {
@@ -980,72 +987,43 @@ function listMessages(messageList, channel = state._currentChannel, limit = 100)
     attemptResolveAllMissingReplies();
 }
 async function changeServer(x) {
-    console.log("changeServer called with:", x);
-
     currentServer = x;
-    console.log("currentServer set to:", currentServer);
-
-    settings.set("currentServer", currentServer);
-    console.log("settings updated: currentServer");
 
     const channelsState = settings.get("channels_state") || {};
-    console.log("channelsState:", channelsState);
-
     const savedChannel = channelsState[currentServer];
-    console.log("savedChannel for server:", savedChannel);
 
     const chatArea = document.getElementById("interactive_logs");
-    console.log("chatArea element:", chatArea);
-
     if (chatArea) {
         chatArea.innerHTML = "";
-        console.log("chatArea cleared");
-    } else {
-        console.warn("chatArea not found");
     }
 
-    console.log("closing websocket...");
-    ws.close();
+    try {
+        ws.close();
+    } catch (e) { }
 
-    console.log("calling greenflag()");
     greenflag();
 
     const openSavedOrFirst = () => {
-        console.log("openSavedOrFirst triggered");
-
         const target =
             savedChannel &&
-            state.channelsArray?.some(c => c.name === savedChannel)
+                state.channelsArray?.some(c => c.name === savedChannel)
                 ? savedChannel
                 : state.channelsArray?.[0]?.name;
 
-        console.log("resolved target channel:", target);
-        console.log("channelsArray:", state.channelsArray);
-
         if (target) {
-            console.log("changing channel to:", target);
             changeChannel(target);
-        } else {
-            console.warn("no valid target channel found");
         }
     };
 
-    if (state.channelsArray?.length) {
-        console.log("channels already available:", state.channelsArray.length);
-        openSavedOrFirst();
-    } else {
-        console.log("channels not ready, waiting...");
-
-        const wait = setInterval(() => {
-            console.log("polling channelsArray...", state.channelsArray);
-
-            if (state.channelsArray?.length) {
-                console.log("channels loaded:", state.channelsArray.length);
-                clearInterval(wait);
+    const state = new Proxy({ channelsArray: [] }, {
+        set(target, prop, value) {
+            target[prop] = value;
+            if (prop === 'channelsArray' && value?.length) {
                 openSavedOrFirst();
             }
-        }, 100);
-    }
+            return true;
+        }
+    });
 }
 function changeChannel(channel) {
     loadedCount = 0;
@@ -1053,8 +1031,7 @@ function changeChannel(channel) {
     lastmsgid = null;
     additionalMessageLoad = false;
 
-    const found = state.channelsArray.find(c => c?.name === channel)
-
+    const found = state.channelsArray.find(c => c.name === channel || c.id === channel);
     if (found?.type === "chat") {
         channel = found.id
     }
@@ -1370,6 +1347,16 @@ function listInPane(messageList) {
         const msgEl = renderVisible(message)
         if (msgEl) chatArea.appendChild(msgEl);
     }
+}
+
+function initialServerLoad() {
+    if (settings.get("currentServer")) {
+        currentServer = settings.get("currentServer");
+    } else {
+        settings.set("currentServer", "wss://dms.mistium.com");
+        currentServer = settings.get("currentServer");
+    }
+    changeServer(currentServer);
 }
 
 function updateBusy() {

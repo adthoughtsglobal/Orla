@@ -103,7 +103,7 @@ async function loginWithToken(token) {
         roturState.authenticated = true;
 
         say("Connected")
-        greenflag();
+        initialServerLoad();
         loader.hide();
         return `Logged in as ${roturState.user.username}`;
     } catch (error) {

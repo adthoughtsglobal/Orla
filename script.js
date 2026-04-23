@@ -529,12 +529,6 @@ function loadServers() {
 }
 document.addEventListener("DOMContentLoaded", () => {
     loadServers();
-    if (settings.get("currentServer")) {
-        currentServer = settings.get("currentServer");
-    } else {
-        settings.set("currentServer", "wss://dms.mistium.com");
-        currentServer = settings.get("currentServer");
-    }
 });
 
 function deleteServer(url) {
