@@ -145,11 +145,10 @@ class MessageBuilder {
         if (!connected) {
             const img = ElementFactory.img("pfp", avatar)
 
-            const name = ElementFactory.div("inline bold", username)
-            name.style.color = state.users[username]?.color
-            name.addEventListener("click", () => {
-                runcmd(`profile ${username.toLowerCase()}`)
-            })
+            const name = ElementFactory.div("inline bold", username);
+            name.style.color = state.users[username]?.color;
+            name.dataset.username = username;
+            name.classList.add("username");
 
             const time = ElementFactory.div("time", timeStr)
             const fill = ElementFactory.div("fill")
@@ -516,42 +515,60 @@ function loadServers() {
         img.dataset.context = "server";
         img.dataset.name = server.name;
         img.dataset.url = server.url;
-        img.addEventListener("click", () => {
-            runcmd("cls");
-            runcmd("server " + server.url);
-        });
+
         img.src = server.icon || "";
         list.appendChild(img);
+    });
+
+    list.addEventListener("click", (e) => {
+        const el = e.target.closest(".server_shortcut");
+        if (!el || !list.contains(el)) return;
+
+        const url = el.dataset.url;
+        if (!url) return;
+
+        runcmd("cls");
+        runcmd("server " + url);
     });
 }
 document.addEventListener("DOMContentLoaded", () => {
     loadServers();
-    document.addEventListener("click", e => {
-        const el = e.target.closest(".reply-excerpt");
-        if (!el) return;
-        const mid = el.dataset.ref;
-        console.log(mid)
-        if (mid) jumpToMessage(mid);
-    });
 
-    document.addEventListener("click", e => {
-        const btn = e.target.closest("[data-action]")
-        if (!btn) return
-
-        const id = btn.dataset.id
-        const action = btn.dataset.action
-
-        if (action === "reply") runcmd(`reply ${id}`)
-        if (action === "delete") runcmd(`delete ${id}`)
-        if (action === "edit") runcmd(`edit ${id}`)
-        if (action === "copy") {
-            btn.innerText = "check"
-            navigator.clipboard.writeText(id)
-            setTimeout(() => {
-                btn.innerText = "content_copy"
-            }, 2000)
+    document.addEventListener("click", async e => {
+        const reply = e.target.closest(".reply-excerpt");
+        if (reply) {
+            const mid = reply.dataset.ref;
+            if (mid) jumpToMessage(mid);
+            return;
         }
-    })
+
+        const btn = e.target.closest("[data-action]");
+        if (btn) {
+            const id = btn.dataset.id;
+            const action = btn.dataset.action;
+
+            if (action === "reply") runcmd(`reply ${id}`);
+            else if (action === "delete") runcmd(`delete ${id}`);
+            else if (action === "edit") runcmd(`edit ${id}`);
+            else if (action === "copy") {
+                try {
+                    await navigator.clipboard.writeText(id);
+                    const original = btn.textContent;
+                    btn.textContent = "check";
+                    setTimeout(() => {
+                        btn.textContent = original;
+                    }, 2000);
+                } catch (err) {}
+            }
+            return;
+        }
+
+        const user = e.target.closest(".username");
+        if (user) {
+            const username = user.dataset.username;
+            if (username) runcmd(`profile ${username.toLowerCase()}`);
+        }
+    });
 });
 
 function deleteServer(url) {

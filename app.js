@@ -21,6 +21,7 @@ let state = {
     set currentChannel(value) {
         this._currentChannel = value;
         settings.set("currentServer", currentServer);
+        this.messages = {};
         const ch = this.channelsArray.find(c => c.name === value);
 
         if (ws?.readyState === 1) {
@@ -143,7 +144,6 @@ function attachWsHandlers() {
             }
             case "auth_success": {
                 ws.send(JSON.stringify({ cmd: "channels_get" }));
-                ws.send(JSON.stringify({ cmd: "users_list" }));
                 ws.send(JSON.stringify({ cmd: "users_online" }));
                 setTimeout(loader.hide, 500);
                 const input = document.getElementById("mainTxtAr");
@@ -926,13 +926,13 @@ function updateMissedIndicator(count) {
         eledad.style.display = "none";
     }
 }
-
 let loadedCount = 0;
 let currentObserver = null;
+let loadTriggerEl = null;
+
 function makeLoadTrigger(channelName) {
-    const channel = state.channelsArray.find(c => c.name === channelName);
     const t = document.createElement("div");
-    t.style.height = "1px";
+    t.style.height = "500px";
 
     if (currentObserver) currentObserver.disconnect();
 
@@ -960,16 +960,19 @@ function makeLoadTrigger(channelName) {
 
     return t;
 }
+
 function listMessages(messageList, channel = state._currentChannel) {
     if (!messageList?.length) {
         state.hasMoreMessages = false;
         if (currentObserver) currentObserver.disconnect();
+        if (loadTriggerEl) loadTriggerEl.remove();
         return;
     }
 
     if (messageList.length < state.message_ontime_limit) {
         state.hasMoreMessages = false;
         if (currentObserver) currentObserver.disconnect();
+        if (loadTriggerEl) loadTriggerEl.remove();
     }
 
     loadedCount += messageList.length;
@@ -983,9 +986,13 @@ function listMessages(messageList, channel = state._currentChannel) {
 
     const frag = document.createDocumentFragment();
 
-    // if (state.hasMoreMessages === true) {
-        frag.appendChild(makeLoadTrigger(channel));
-    // }
+    const oldTrigger = chatArea.querySelector(".load-trigger");
+    if (oldTrigger) oldTrigger.remove();
+
+    const trigger = makeLoadTrigger(channel);
+    trigger.className = "load-trigger";
+    loadTriggerEl = trigger;
+    frag.appendChild(trigger);
 
     for (const m of messageList) {
         const n = renderMessage(m);
@@ -1118,65 +1125,14 @@ function getUserColor(username) {
 
 
 function renderMembers() {
-    const root = document.getElementsByClassName("members_lists")[0];
-    if (!root) return;
-    root.innerHTML = "";
-
-    const owners = [];
-    const online = [];
-    const offline = [];
-    const isOwner = (u) =>
-        Array.isArray(u?.roles) &&
-        u.roles.some((r) => String(r).toLowerCase() === "owner");
-
-    for (const uname in state.users) {
-        const u = state.users[uname];
-        if (!u) continue;
-        if (!canView(state.currentChannel, u)) continue;
-        const isOn = !!state.online_users[uname];
-        if (isOwner(u) && isOn) owners.push(u);
-        else if (isOn) online.push(u);
-        else offline.push(u);
-    }
-
-    const sortUsers = (arr) =>
-        arr.sort((a, b) =>
-            (a.displayName || a.username).localeCompare(b.displayName || b.username),
-        );
-    sortUsers(owners);
-    sortUsers(online);
-    sortUsers(offline);
-
-    const section = (title, list, opts = {}) => {
-        if (!list.length) return;
-        const titleEl = document.createElement("div");
-        titleEl.className = "sublist_title";
-        titleEl.textContent = `${title.toUpperCase()} - ${list.length}`;
-        root.appendChild(titleEl);
-        for (const u of list) {
-            const uname = u.username;
-            const entry = document.createElement("div");
-            entry.onclick = () => {
-                launchSideBarApp("profile", { name: uname })
-            }
-            entry.className = "profile_card" + (opts.offline ? " offline" : "");
-            const color = getUserColor(uname);
-            const disp = escapeHTML(u.displayName || uname);
-            entry.innerHTML = `
-        <img src="https://avatars.rotur.dev/${encodeURIComponent(uname)}" alt="${disp}" class="pfp">
-         <div class="data">
-                            <div class="name" style="color:${color}">${disp} ${isOwner(u) ? '<span class="role-pill symb" title="Owner">crown</span>' : ""}</div>
-                        </div>
-        <span</span>
-        
-            `;
-            root.appendChild(entry);
-        }
-    };
-
-    section("Owner", owners);
-    section("Online", online);
-    section("Offline", offline, { offline: true });
+    Object.entries(state.users).forEach(([name, user]) => {
+        const row = document.createElement("div")
+        row.style.marginBottom = "8px"
+        const result = toFormattedString({ name, ...user })
+        const lines = Array.isArray(result) ? result : result ? [result] : []
+        lines.forEach(line => row.appendChild(line))
+        pane.appendChild(row)
+    })
 }
 
 function updatemainTxtArPermissions() {
@@ -1300,6 +1256,8 @@ function renderReactions(msg, container) {
     const reactionsDiv = document.createElement("div");
     reactionsDiv.className = "message-reactions";
 
+    reactionsDiv.dataset.messageId = msg.id;
+
     for (const [rawEmoji, users] of Object.entries(reactions)) {
         const count = users.length;
         if (!count) continue;
@@ -1309,19 +1267,27 @@ function renderReactions(msg, container) {
 
         const reactionEl = document.createElement("span");
         reactionEl.className = "reaction" + (hasReacted ? " super" : "");
+        reactionEl.setAttribute("data-emoji", rawEmoji);
         reactionEl.setAttribute("data-tooltip", users.join(", "));
-        reactionEl.innerHTML = `
-[<span class="reaction-emoji">${emoji}</span>
-<span class="reaction-count">${count}</span>]
-`;
 
-        reactionEl.addEventListener("click", e => {
-            e.stopPropagation();
-            toggleReaction(msg.id, rawEmoji);
-        });
+        reactionEl.innerHTML =
+            `[<span class="reaction-emoji">${emoji}</span>
+<span class="reaction-count">${count}</span>]`;
 
         reactionsDiv.appendChild(reactionEl);
     }
+
+    reactionsDiv.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        const el = e.target.closest(".reaction");
+        if (!el) return;
+
+        const emoji = el.dataset.emoji;
+        const msgId = reactionsDiv.dataset.messageId;
+
+        toggleReaction(msgId, emoji);
+    });
 
     container.appendChild(reactionsDiv);
 }

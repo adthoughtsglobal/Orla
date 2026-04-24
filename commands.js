@@ -409,15 +409,9 @@ const commands = {
 
         const paneCommands = {
             members: () => {
+                ws.send(JSON.stringify({ cmd: "users_list" }));
+                state.members_list_requested = true;
                 pane.innerHTML = ""
-                Object.entries(state.users).forEach(([name, user]) => {
-                    const row = document.createElement("div")
-                    row.style.marginBottom = "8px"
-                    const result = toFormattedString({ name, ...user })
-                    const lines = Array.isArray(result) ? result : result ? [result] : []
-                    lines.forEach(line => row.appendChild(line))
-                    pane.appendChild(row)
-                })
                 filterPane()
             },
             state: () => {
