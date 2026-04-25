@@ -25,6 +25,13 @@ let state = {
         const ch = this.channelsArray.find(c => c.name === value);
 
         if (ws?.readyState === 1) {
+            if (state.voice_connected) {
+                ws.send(JSON.stringify({
+                    cmd: "voice_leave"
+                }));
+                state.peer = null;
+                state.voice_connected = false;
+            }
             if (ch?.type === "forum" && isNaN(this._currentThread)) {
                 renderThreads(ch.threads);
                 return;
@@ -37,6 +44,23 @@ let state = {
                     channel: value,
                     thread_id: thread.id
                 }));
+            } else if (ch?.type == "voice") {
+                if (window.confirm("Load 93KB for voice configuration?")) {
+                    loadScriptOnce("assets/peer.js")
+                        .then(() => {
+                            state.peer = new Peer();
+                            state.peer.on("open", (id) => {
+                                ws.send(JSON.stringify({
+                                    cmd: "voice_join",
+                                    channel: value,
+                                    peer_id: id
+                                }));
+                            });
+                            state.voice_connected = true;
+
+                        })
+                        .catch(console.error);
+                }
             } else {
                 ws.send(JSON.stringify({
                     cmd: "messages_get",
@@ -258,7 +282,8 @@ function attachWsHandlers() {
                     MessageBuilder.action({
                         icon: "edit",
                         username: data.message.user,
-                        action: "edited a message"
+                        action: "edited a message",
+                        expiry: 5000
                     })
                 )
                 break;
@@ -325,7 +350,7 @@ function attachWsHandlers() {
                             icon: "arrow_forward",
                             username: u.username,
                             action: "is online",
-                            time: ""
+                            expiry: 5000
                         })
                     )
                 }
@@ -341,7 +366,7 @@ function attachWsHandlers() {
                             icon: "arrow_back",
                             username: uname,
                             action: "went offline",
-                            time: ""
+                            expiry: 5000
                         })
                     )
                 }
@@ -354,7 +379,7 @@ function attachWsHandlers() {
                             icon: "add_reaction",
                             username: data.username,
                             action: "set status: " + data.status.text,
-                            time: ""
+                            expiry: 5000
                         })
                     )
 
@@ -367,7 +392,7 @@ function attachWsHandlers() {
                         icon: "add_reaction",
                         username: data.from,
                         action: "reacted " + data.emoji + " to <strong>a_message</strong> in " + data.channel,
-                        time: ""
+                        expiry: 5000
                     })
                 )
                 const message = state.messages[data.id];
@@ -402,6 +427,12 @@ function attachWsHandlers() {
                 if (data.channel === state.currentChannel?.name) {
                     updateMessageReactions(data.id);
                 }
+                MessageBuilder.action({
+                    icon: "close",
+                    username: data.from,
+                    action: "unreacted " + data.emoji + " in <strong>a_message</strong> in " + data.channel,
+                    expiry: 5000
+                })
                 break;
             }
             case "emoji_get_all": {
@@ -450,6 +481,7 @@ function listChannels(channelList) {
                 id: channel.name || "",
                 name: channel.display_name || channel.name || "",
                 desc: channel.description || "",
+                icon: channel.icon || "",
                 unread: state.unread[channel.name] || 0,
                 type: "chat"
             });
@@ -459,6 +491,13 @@ function listChannels(channelList) {
                 name: channel.name || "thread",
                 type: "forum",
                 threads: channel.threads
+            });
+        } else if (channel.type === "voice") {
+            result.push({
+                id: channel.name || "",
+                name: channel.name,
+                type: "voice",
+                voice_state: channel.voice_state
             });
         } else if (channel.type === "separator") {
             result.push({ type: "separator" });

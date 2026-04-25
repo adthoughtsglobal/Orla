@@ -147,8 +147,9 @@ const commands = {
             .map((c, i) => {
                 const idx = String(i).padStart(2, "0")
                 const label = c.name
-                const name = c.name == state.currentChannel ? `<strong>${label}</strong>` : label
-                return `${idx} | ${name}`
+                const name = c.name == state.currentChannel ? `<strong>${label}</strong>` : label;
+                const icon = c.icon;
+                return `${(icon) ? `<img src='${icon}' class="custom-emoji">` : "<span class='custom-emoji icon'>tag</span>"} ${idx} | ${name}`
             })
 
         document.getElementById("logspane")?.appendChild(
@@ -215,11 +216,53 @@ const commands = {
             MessageBuilder.action({ icon: "brush", action, time: "" })
         )
         const resolveTheme = (arg) => /^\d+$/.test(arg) ? themes[parseInt(arg)] : arg
-        const addTheme = (name) => {
+        const addTheme = async (name) => {
             if (!name || getActive().includes(name)) return
-            const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'themes/' + name + '.css' })
+
+            const res = await fetch('themes/' + name + '.css')
+            const text = await res.text()
+            const firstLine = text.split('\n')[0].trim()
+
+            let msg = ''
+            const match = firstLine.match(/orla-theme-text:\s*"(.*)"/)
+            if (match) msg = match[1]
+
+            const style = document.createElement('style')
+            style.id = 'theme-transition'
+            style.textContent = `*{transition:color 5s, background-color 5s, border-color 5s}`
+            document.head.appendChild(style)
+
+            setTimeout(() => {
+                style.remove()
+            }, 5000)
+
+            if (msg) {
+                const overlay = document.createElement('div')
+                overlay.id = 'theme-text'
+                overlay.textContent = msg
+                Object.assign(overlay.style, {
+                    position: 'fixed',
+                    inset: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    justifyContent: 'center',
+                    fontSize: '8vw',
+                    zIndex: '9999',
+                    pointerEvents: 'none',
+                    animation: "slowin 5s"
+                })
+                document.body.appendChild(overlay)
+                setTimeout(() => overlay.remove(), 4500)
+            }
+
+            const link = Object.assign(document.createElement('link'), {
+                rel: 'stylesheet',
+                href: 'themes/' + name + '.css'
+            })
             link.classList.add('theme-stylesheet')
             link.dataset.theme = name
+
             document.head.appendChild(link)
         }
 

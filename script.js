@@ -132,7 +132,7 @@ class MessageActions {
     }
 }
 class MessageBuilder {
-    static message({ avatar, username, timeStr, text, message, prevMessage }) {
+    static message({ avatar, username, timeStr, timeout, text, message, prevMessage }) {
         const connected = MessageGrouper.shouldConnect(prevMessage, message)
 
         const root = ElementFactory.div("msg")
@@ -213,17 +213,29 @@ class ActionBuilder {
             last.actNode.textContent = `${action} x${last.count}`
 
             if (last.timer) clearTimeout(last.timer)
+
             if (expiry) {
+                last.bar.style.animation = "none"
+                last.bar.offsetHeight
+                last.bar.style.animation = `timeout-shrink ${expiry}ms linear forwards`
+
                 last.timer = setTimeout(() => {
-                    last.root.remove()
-                    if (this.lastAction === last) this.lastAction = null
+                    last.root.style.overflow = "hidden"
+                    last.root.style.transition = "transform 200ms ease, opacity 200ms ease"
+                    last.root.style.transform = "scaleY(0)"
+                    last.root.style.opacity = "0"
+
+                    setTimeout(() => {
+                        last.root.remove()
+                        if (this.lastAction === last) this.lastAction = null
+                    }, 200)
                 }, expiry)
             }
 
             return last.root
         }
 
-        const root = ElementFactory.div("msg")
+        const root = ElementFactory.div("msg action")
         const data = ElementFactory.div("data")
 
         const ic = ElementFactory.div("icon", icon || "info_i")
@@ -240,10 +252,24 @@ class ActionBuilder {
         root.append(ic, data, time)
 
         let timer = null
+        let bar = null
+
         if (expiry) {
+            bar = ElementFactory.div("timeout-bar")
+            root.appendChild(bar)
+
+            bar.style.animation = `timeout-shrink ${expiry}ms linear forwards`
+
             timer = setTimeout(() => {
-                root.remove()
-                if (this.lastAction && this.lastAction.root === root) this.lastAction = null
+                root.style.overflow = "hidden"
+                root.style.transition = "transform 200ms ease, opacity 200ms ease"
+                root.style.transform = "scaleY(0)"
+                root.style.opacity = "0"
+
+                setTimeout(() => {
+                    root.remove()
+                    if (this.lastAction && this.lastAction.root === root) this.lastAction = null
+                }, 200)
             }, expiry)
         }
 
@@ -255,7 +281,8 @@ class ActionBuilder {
             timeNode: time,
             actNode: act,
             count: 1,
-            timer
+            timer,
+            bar
         }
 
         return root
@@ -558,7 +585,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     setTimeout(() => {
                         btn.textContent = original;
                     }, 2000);
-                } catch (err) {}
+                } catch (err) { }
             }
             return;
         }

@@ -1,0 +1,20 @@
+/* orla-theme-text: "Welcome, comrade." */
+:root {
+    --one: #961D2B;
+    --two: #C52638;
+    --three: #b98200;
+    --four: #f8ff4b;
+    --five: #f4ffa4;
+    --highone: rgb(117 4 4);
+    --highlight: rgb(242 255 85);
+    --highlighttext: rgb(110 101 15);
+    --highdark: rgb(110 83 15);
+    --hightext: rgb(254 191 191);
+    --text: rgb(255 200 200);
+}
+
+.username {
+  &::before {
+    content: "OUR ";
+  }
+}

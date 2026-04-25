@@ -229,6 +229,7 @@ textarea {
 .pulseh {
     animation: pulse .5s infinite;
     background-color: var(--highdark);
+
     &:hover {
         background-color: var(--highone);
     }
@@ -510,6 +511,27 @@ img.msg_img {
     transform: scale(1.3) translateY(1px);
 }
 
+
+.timeout-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: var(--highlight);
+    transform-origin: left;
+}
+
+@keyframes timeout-shrink {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+
 #rotur-auth {
     width: calc(100vw - 0em);
     height: calc(100vh - 0em);
@@ -602,4 +624,22 @@ div#servers_list {
 
 .context-active {
     border: 1px solid var(--highone);
+}
+
+.inline_channel_icon {
+    height: 1.3em;
+    width: 1.3em;
+}
+
+@keyframes slowin {
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
 }
