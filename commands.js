@@ -207,7 +207,7 @@ const commands = {
         document.getElementById("logspane").innerHTML = ""
     },
     theme: async (output) => {
-        const themes = ["bright", "crt", "cute-dark", "cute-light", "green", "neon", "collapse-server-bar"]
+        const themes = ["bright", "crt", "cute-dark", "cute-light", "green", "neon", "collapse-server-bar", "centered-server-bar", "communism"]
         const [subcommand, themeName] = output.params
 
         const getLinks = () => [...document.querySelectorAll('link.theme-stylesheet')]
