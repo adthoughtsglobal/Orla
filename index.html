@@ -26,8 +26,10 @@
             <div class="seebottom">[
                 <span id="missedmsgs"></span> new messages ]
             </div>
-            <div id="typing-indicator"></div>
-            <div id="reply_preview"></div>
+            <div class="main_inp_supporting_pane">
+                <div id="typing-indicator"></div>
+                <div id="replyPrompt"></div>
+            </div>
             <div class="inputs">
                 <textarea id="mainTxtAr" type="text" placeholder="send a message..." rows="1"></textarea>
             </div>
@@ -47,7 +49,7 @@
         </div>
     </div>
     <div id="contextMenu" class="context-menu"></div>
-    
+
     <script src="utility.js"></script>
     <script src="rotur.js" defer></script>
     <script src="script.js" defer></script>

@@ -438,11 +438,16 @@ const commands = {
     },
 
     delete: async (output) => {
-        ws.send(JSON.stringify({ cmd: "message_delete", channel: state._currentChannel, id: output.params[0] }))
+        ws.send(JSON.stringify({ cmd: "message_delete", channel: state.currentChannel, id: output.params[0] }))
     },
 
     edit: async (output) => {
         editMessage(output.params[0])
+    },
+
+    reply: async (output) => {
+        state.reply_to[state.currentChannel] = output.params[0];
+        if (canSend(state.currentChannel)) showreplyPrompt(output.params[0]);
     },
 
     pane: async (output) => {

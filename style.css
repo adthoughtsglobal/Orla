@@ -250,6 +250,7 @@ textarea {
         box-shadow: 0 -1px 0 var(--three);
     }
 }
+
 #interactive_logs {
     overflow: hidden;
     overflow-y: auto;
@@ -470,9 +471,23 @@ img.pfp {
     padding: 2em;
 }
 
-#typing-indicator {
+.main_inp_supporting_pane {
     padding: .3em 1em;
-    height: 1em;
+    min-height: 1em;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--one);
+
+    &>* {
+        display: flex;
+        justify-content: space-between;
+        gap: .3em;
+    }
+}
+
+#replyPrompt {
+    color: var(--highlight);
+    cursor: pointer;
 }
 
 .reply-excerpt {
@@ -637,8 +652,8 @@ div#servers_list {
     50% {
         opacity: 1;
     }
+
     100% {
         opacity: 0;
     }
 }
-

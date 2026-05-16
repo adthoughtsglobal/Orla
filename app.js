@@ -1,98 +1,118 @@
 const customEmojisByServer = new Map();
 let ws = null;
+function createInitialState() {
+    return {
+        _currentChannel: null,
+        members_list_shown: true,
+        show_blocked_msgs: true,
+        server: {},
+        user: null,
+        user_keys: null,
+        validator: null,
+        validator_key: null,
+        users: {},
+        online_users: {},
+        reply_to: {},
+        messages: {},
+        unread: {},
+        channels: {},
+        busy: false,
+        message_ontime_limit: 20,
+        typingUsers: {},
+        additionalMessageLoad: false,
+        _embedCache: {},
+        voice_connected: false,
+        peer: null,
 
-let state = {
-    _currentChannel: null,
-    members_list_shown: true,
-    show_blocked_msgs: true,
-    server: {},
-    user: null,
-    user_keys: null,
-    validator: null,
-    validator_key: null,
-    users: {},
-    online_users: {},
-    reply_to: {},
-    messages: {},
-    unread: {},
-    channels: {},
-    busy: false,
-    message_ontime_limit: 20,
-    set currentChannel(value) {
-        this._currentChannel = value;
-        settings.set("currentServer", currentServer);
-        this.messages = {};
-        const ch = this.channelsArray.find(c => c.name === value);
+        set currentChannel(value) {
+            this._currentChannel = value;
+            settings.set("currentServer", currentServer);
+            this.messages = {};
 
-        if (ws?.readyState === 1) {
-            if (state.voice_connected) {
-                ws.send(JSON.stringify({
-                    cmd: "voice_leave"
-                }));
-                state.peer = null;
-                state.voice_connected = false;
-            }
-            if (ch?.type === "forum" && isNaN(this._currentThread)) {
-                renderThreads(ch.threads);
-                return;
-            }
+            const ch = this.channelsArray.find(c => c.name === value);
 
-            if (this._currentThread !== undefined && ch?.threads?.[this._currentThread]) {
-                const thread = ch.threads[this._currentThread];
-                ws.send(JSON.stringify({
-                    cmd: "thread_messages",
-                    channel: value,
-                    thread_id: thread.id
-                }));
-            } else if (ch?.type == "voice") {
-                if (window.confirm("Load 93KB for voice configuration?")) {
-                    loadScriptOnce("assets/peer.js")
-                        .then(() => {
-                            state.peer = new Peer();
-                            state.peer.on("open", (id) => {
-                                ws.send(JSON.stringify({
-                                    cmd: "voice_join",
-                                    channel: value,
-                                    peer_id: id
-                                }));
-                            });
-                            state.voice_connected = true;
+            if (ws?.readyState === 1) {
+                if (state.voice_connected) {
+                    ws.send(JSON.stringify({
+                        cmd: "voice_leave"
+                    }));
 
-                        })
-                        .catch(console.error);
+                    state.peer = null;
+                    state.voice_connected = false;
                 }
-            } else {
-                ws.send(JSON.stringify({
-                    cmd: "messages_get",
-                    channel: value,
-                    limit: this.message_ontime_limit
-                }));
+
+                if (ch?.type === "forum" && isNaN(this._currentThread)) {
+                    renderThreads(ch.threads);
+                    return;
+                }
+
+                if (this._currentThread !== undefined && ch?.threads?.[this._currentThread]) {
+                    const thread = ch.threads[this._currentThread];
+
+                    ws.send(JSON.stringify({
+                        cmd: "thread_messages",
+                        channel: value,
+                        thread_id: thread.id
+                    }));
+                } else if (ch?.type == "voice") {
+                    if (window.confirm("Load 93KB for voice configuration?")) {
+                        loadScriptOnce("assets/peer.js")
+                            .then(() => {
+                                state.peer = new Peer();
+
+                                state.peer.on("open", (id) => {
+                                    ws.send(JSON.stringify({
+                                        cmd: "voice_join",
+                                        channel: value,
+                                        peer_id: id
+                                    }));
+                                });
+
+                                state.voice_connected = true;
+                            })
+                            .catch(console.error);
+                    }
+                } else {
+                    ws.send(JSON.stringify({
+                        cmd: "messages_get",
+                        channel: value,
+                        limit: this.message_ontime_limit
+                    }));
+                }
             }
+        },
+
+        get currentChannel() {
+            return this._currentChannel;
+        },
+
+        get settings() {
+            return settings.get();
         }
-    },
-    get currentChannel() {
-        return this._currentChannel;
-    },
-    typingUsers: {},
-    additionalMessageLoad: false,
-    _embedCache: {},
-    get settings() {
-        return settings.get()
+    };
+}
+
+let state = createInitialState();
+
+function resetState() {
+    const fresh = createInitialState();
+
+    for (const key of Object.keys(state)) {
+        delete state[key];
     }
-};
 
-let emojis;
+    Object.defineProperties(
+        state,
+        Object.getOwnPropertyDescriptors(fresh)
+    );
+}
 
-userKeysUpdate();
 const membersList = document.querySelector(".members_list");
 
 document.getElementById("memberlistbtn")?.addEventListener("click", () => {
     membersList.style.display =
         membersList.style.display === "none" ? "" : "none";
 });
-function userKeysUpdate() {
-    // state.user_keys = roturExtension.user ?? {};
-}
 
 function connectWebSocket() {
     if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
@@ -434,19 +454,6 @@ function attachWsHandlers() {
                     expiry: 5000
                 })
                 break;
-            }
-            case "emoji_get_all": {
-                const map = {};
-
-                for (const [id, emoji] of Object.entries(msg.emojis || {})) {
-                    map[id] = {
-                        name: emoji.name,
-                        fileName: emoji.fileName
-                    };
-                }
-
-                customEmojisByServer.set("chats.mistium.com", map);
-                break
             }
             case "auth_error":
             case "error":
@@ -1204,18 +1211,18 @@ function updateUserPanel() {
 }
 
 function showreplyPrompt(msg) {
-
+    msg = state.messages[msg];
     document.querySelectorAll('.replyingto').forEach(el => el.classList.remove('replyingto'))
     const banner = document.getElementById("replyPrompt");
     if (!banner) return;
     if (!canSend(state.currentChannel)) return;
     if (state.editing) cancelEdit();
-    document.body.querySelector(`[data-id="${msg.id}"]`).classList.add("replyingto");
+    document.body.querySelector(`.msg[data-id="${msg.id}"]`).classList.add("replyingto");
     banner.classList.remove("hidden");
     const uname =
         msg.user || (typeof msg === "object" && msg.username) || "unknown";
-    banner.innerHTML = `<div>Replying to <div id="replyun">${escapeHTML(uname)}</div>
-                    </div><div class="clsbtn symb" id="cancelReplyBtn">close</div>`;
+    banner.innerHTML = `<span>Replying to <span id="replyun">${escapeHTML(uname)}</span>
+                    </span><span class="icon" id="cancelReplyBtn">close</span>`;
     document.getElementById("cancelReplyBtn").onclick = () => {
         state.reply_to[state.currentChannel] = null;
         hidereplyPrompt(msg);
