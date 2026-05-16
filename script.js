@@ -388,6 +388,15 @@ class AttachmentBuilder {
         return att.mime_type && att.mime_type.startsWith("image/")
     }
 
+    static scrollNearestFill(el) {
+        const fill = el.closest(".fill")
+        if (!fill) return
+
+        requestAnimationFrame(() => {
+            fill.scrollTop = fill.scrollHeight
+        })
+    }
+
     static build(attachments) {
         if (!attachments || !attachments.length) return null
 
@@ -397,15 +406,22 @@ class AttachmentBuilder {
         attachments.forEach(att => {
             if (this.isImage(att)) {
                 const img = document.createElement("img")
+
+                img.onload = () => {
+                    this.scrollNearestFill(img)
+                }
+
                 img.src = att.url
                 img.className = "msg_img"
                 img.loading = "lazy"
+
                 wrap.appendChild(img)
             } else {
                 const a = document.createElement("a")
                 a.href = att.url
                 a.textContent = att.name || "attachment"
                 a.target = "_blank"
+
                 wrap.appendChild(a)
             }
         })

@@ -128,10 +128,6 @@ textarea {
         }
     }
 
-    &:last-child {
-        margin-bottom: 1em;
-    }
-
     &:hover {
         background-color: var(--two);
 
@@ -254,11 +250,12 @@ textarea {
         box-shadow: 0 -1px 0 var(--three);
     }
 }
-
-div#interactive_logs {
+#interactive_logs {
     overflow: hidden;
     overflow-y: auto;
     overflow-anchor: auto;
+    flex-direction: column;
+    display: flex;
 }
 
 .pane.interactive {
@@ -475,6 +472,7 @@ img.pfp {
 
 #typing-indicator {
     padding: .3em 1em;
+    height: 1em;
 }
 
 .reply-excerpt {
@@ -643,3 +641,4 @@ div#servers_list {
         opacity: 0;
     }
 }
+
