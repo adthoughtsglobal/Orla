@@ -358,7 +358,7 @@ const commands = {
             document.getElementById("logspane").appendChild(
                 MessageBuilder.action({
                     icon: "wand_stars",
-                    action: `<div style="display:flex; gap:.5em; width:100%;"><img class="pfp" src="https://avatars.rotur.dev/${user}"><div style="flex:1">${lines.join("<br>")}</div></div>`,
+                    action: `<div style="display:flex; gap:.5em; width:100%;"><div class="pfpcontainer"><img class="pfp overlay" src="https://avatars.rotur.dev/.overlay/${user}"><img class="pfp " src="https://avatars.rotur.dev/${user}"></div><div style="flex:1">${lines.join("<br>")}</div></div>`,
                     time: ""
                 })
             )

@@ -464,7 +464,7 @@ function attachWsHandlers() {
         }
     };
     ws.onerror = (e) => showError("WebSocket error");
-    ws.onclose = () => console.log("WebSocket closed");
+    ws.onclose = () => setTimeout(connectWebSocket(), 5000);
 }
 
 function showError(msg) {

@@ -107,6 +107,7 @@ textarea {
     box-shadow: 1px 0 0 var(--two);
     display: flex;
     flex-direction: column;
+    position: relative;
     overflow-y: auto;
     width: 0;
 }
@@ -435,11 +436,23 @@ ul {
     }
 }
 
-img.pfp {
-    width: 7em;
-    height: 7em;
-    border: 1px solid var(--three);
+.pfpcontainer {
     position: relative;
+    width: 7em;
+
+    img.pfp {
+        width: 7em;
+        height: 7em;
+        border: 1px solid var(--three);
+        position: absolute;
+
+        &.overlay {
+            z-index: 2;
+            transform: scale(1.2);
+            border: 0;
+        }
+    }
+
 }
 
 .seebottom {
@@ -576,6 +589,10 @@ div#servers_list {
 #autocomplete_list {
     display: flex;
     flex-direction: column;
+    position: absolute;
+    width: 100%;
+    background: var(--two);
+    bottom: 2.75em;
 }
 
 .autocomplete_item {
