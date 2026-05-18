@@ -1217,6 +1217,7 @@ function showreplyPrompt(msg) {
     if (!banner) return;
     if (!canSend(state.currentChannel)) return;
     if (state.editing) cancelEdit();
+    state.reply_to[state.currentChannel] = msg;
     document.body.querySelector(`.msg[data-id="${msg.id}"]`).classList.add("replyingto");
     banner.classList.remove("hidden");
     const uname =
