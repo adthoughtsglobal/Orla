@@ -674,3 +674,7 @@ div#servers_list {
         opacity: 0;
     }
 }
+
+.hidden {
+    display: none;
+}

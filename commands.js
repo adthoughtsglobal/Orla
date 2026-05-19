@@ -301,6 +301,7 @@ const commands = {
 <li><strong>members</strong>: shows a list of all members in the current server</li>
 <li><strong>pinned</strong>: shows all pinned messages in the current channel</li>
 <li><strong>state</strong> [variable]: outputs the value of an Orla state variable</li>
+<li><strong>servers</strong> [variable]: toggles visibility of the servers pane</li>
 </ul>`,
                     time: ""
                 })
@@ -474,6 +475,9 @@ const commands = {
             search: () => {
                 pane.innerHTML = `<p>Messages containing "${output.params[1]}":</p>`
                 ws.send(JSON.stringify({ cmd: "messages_search", channel: state.currentChannel, query: output.params[1] }))
+            },
+            servers: () => {
+                var el = document.getElementById("server_list_element").classList.toggle("hidden")
             }
         }
 

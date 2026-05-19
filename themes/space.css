@@ -1,0 +1,29 @@
+:root {
+  --one: rgba(25, 25, 26, 40%);
+  --two: rgba(16, 16, 16, 0.13);
+  --three: rgba(47, 49, 49, 40%);
+  --four: rgb(60, 60, 60);
+  --five: rgb(140, 143, 141);
+
+  --highone: rgb(4, 76, 117);
+  --highlight: rgb(165, 195, 249);
+  --highlighttext: rgb(15, 50, 110);
+
+  --highdark: rgb(15, 50, 110);
+  --hightext: rgb(191, 229, 254);
+
+  --text: rgb(240, 240, 240);
+}
+
+body {
+  background: url(https://cdn.pixabay.com/animation/2023/03/19/02/34/02-34-11-741_512.gif);
+}
+
+.serverslist, .inputs, .context-menu, #autocomplete_list, .edit_area {
+  backdrop-filter: blur(5px);
+}
+
+.pane {
+  backdrop-filter: brightness(80%);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.214) inset;
+}
