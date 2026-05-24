@@ -295,14 +295,30 @@ const commands = {
                 MessageBuilder.action({
                     icon: "wand_stars",
                     action: `Orla Pane Help<br><ul>
-<li><strong>pane</strong>: closes the pane</li>
-<b>Pane subcommands</b>
-<li><strong>search</strong> [keywords]: searches the current channel</li>
-<li><strong>members</strong>: shows a list of all members in the current server</li>
-<li><strong>pinned</strong>: shows all pinned messages in the current channel</li>
-<li><strong>state</strong> [variable]: outputs the value of an Orla state variable</li>
-<li><strong>servers</strong> [variable]: toggles visibility of the servers pane</li>
+<li><strong>pane</strong>: closes the pane</li></ul>
+<b>Pane subcommands</b><ul>
+<li>pane <strong>search</strong> [keywords]: searches the current channel</li>
+<li>pane <strong>members</strong>: shows a list of all members in the current server</li>
+<li>pane <strong>pinned</strong>: shows all pinned messages in the current channel</li>
+<li>pane <strong>state</strong> [variable]: outputs the value of an Orla state variable</li>
+<li>pane <strong>servers</strong> [variable]: toggles visibility of the servers pane</li>
 </ul>`,
+                    time: ""
+                })
+            )
+            return
+        } else if (output.params[0] === "theme") {
+            document.getElementById("logspane").appendChild(
+                MessageBuilder.action({
+                    icon: "wand_stars",
+                    action: `Orla Theme Help<br><ul>
+<li><strong>theme</strong>: lists all themes</li></ul>
+<b>Theme subcommands</b><ul>
+<li>theme <strong>add</strong> [theme_name]: add a theme to the current theme mix</li>
+<li>theme <strong>remove</strong> [theme_name]: remove a theme from the current theme mix</li>
+</ul>
+The 'add' subcommand is optional.
+`,
                     time: ""
                 })
             )
@@ -314,17 +330,21 @@ const commands = {
                 action: `Orla Client: commands<br><ul>
 <li><strong>online</strong>: shows a list of online users</li>
 <li><strong>ls</strong>: lists all channels with IDs</li>
-<li><strong>cd</strong> [channel_name/local_id]: navigate to a channel or display channel name</li>
+<li><strong>server [URL]</strong>: joins and connects to a server</li>
+<li><strong>cd</strong> [channel_name/local_id]: navigate to a channel</li>
 <li><strong>profile</strong> [*username]: displays user data</li>
-<b>Orla Specific:</b>
+<li><strong>edit</strong> [message_id]: opens message editor</li>
+<li><strong>reply</strong> [message_id]: draft a message reply</li>
+<li><strong>delete</strong> [message_id]: delete a message</li>
+</ul><b>Orla:</b><ul>
 <li><strong>help</strong>: shows this message</li>
 <li><strong>cls</strong>: clear command logs</li>
-<li><strong>pane</strong> [subcommand]: opens a secondary pane</li>
-<li><strong>theme</strong> [name]: applies or lists available themes</li>
-<b>Rotur:</b>
+<li><strong>pane</strong> [subcommand]: opens a secondary pane ([help pane] to learn more)</li>
+<li><strong>theme</strong> [subcommand] [name]: applies or lists available themes ([help theme] to learn more)</li>
+</ul><b>Rotur:</b><ul>
 <li><strong>transfer</strong> [username],[amount]: send credits to user</li>
 <li><strong>balance</strong> [*username]: shows rotur credit balance</li>
-</ul>* = optional &nbsp; Use help [pane] for pane help.`,
+</ul>* = optional &nbsp;`,
                 time: ""
             })
         )
@@ -435,7 +455,17 @@ const commands = {
     },
 
     server: async (output) => {
-        changeServer(output.params[0])
+        function normalizeServer(input) {
+            let url = input.trim()
+
+            url = url.replace(/^ws:\/\//, "")
+            url = url.replace(/^wss:\/\//, "")
+            url = url.replace(/\/+$/, "")
+
+            return `wss://${url}`
+        }
+
+        changeServer(normalizeServer(output.params[0]))
     },
 
     delete: async (output) => {
