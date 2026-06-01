@@ -103,7 +103,9 @@ async function loginWithToken(token) {
         roturState.authenticated = true;
 
         say("Connected")
-        initialServerLoad();
+        setTimeout(() => {
+            initialServerLoad();
+        }, 2000);
         loader.hide();
         return `Logged in as ${roturState.user.username}`;
     } catch (error) {
