@@ -1,5 +1,6 @@
 const customEmojisByServer = new Map();
 let ws = null;
+currentServer = "wss://dms.mistium.com/"
 function createInitialState() {
     return {
         _currentChannel: null,
