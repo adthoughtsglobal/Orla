@@ -1446,8 +1446,8 @@ function editMessage(mid) {
 
     function cleanup(save) {
         if (save) {
-            const val = textarea.value.trim();
-            if (val && val != state.messages[mid].content) {
+            const val = textarea.value;
+            if (val != state.messages[mid].content) {
                 state.messages[mid].content = val;
                 textEl.textContent = val;
                 node.classList.add("pulse");
