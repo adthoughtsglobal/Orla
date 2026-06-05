@@ -119,7 +119,7 @@ textarea {
     gap: .5em;
     padding: .5em 1em;
     content-visibility: auto;
-    contain-intrinsic-size: 200px;
+    contain-intrinsic-size: 80px;
 
 
     &.editing .contains_text {
@@ -519,8 +519,9 @@ ul {
 }
 
 img.msg_img {
-    max-height: 13em;
+    height: 13em;
     max-width: 500px;
+    object-fit: contain;
     margin: .5em 0;
     border: 1px solid var(--three);
 }

@@ -25,6 +25,12 @@ function createInitialState() {
         voice_connected: false,
         peer: null,
 
+        renderWindowSize: 200,
+        renderBuffer: 50,
+        orderedMessages: [],
+        renderStart: 0,
+        renderEnd: 0,
+
         set currentChannel(value) {
             this._currentChannel = value;
             settings.set("currentServer", currentServer);
@@ -77,7 +83,7 @@ function createInitialState() {
                     ws.send(JSON.stringify({
                         cmd: "messages_get",
                         channel: value,
-                        limit: this.message_ontime_limit
+                        limit: state.message_ontime_limit
                     }));
                 }
             }
@@ -135,7 +141,6 @@ function attachWsHandlers() {
             console.warn("Non-JSON message", event.data);
             return;
         }
-        console.log("WS", data);
         switch (data.cmd) {
             case "handshake": {
                 const vKey = data?.val?.validator_key;
@@ -229,6 +234,9 @@ function attachWsHandlers() {
                 break;
             case "messages_get":
                 if (data.messages) listMessages(data.messages);
+                break;
+            case "messages_around":
+                handleMessagesAround(data);
                 break;
             case "messages_pinned":
                 if (data.messages) listInPane(data.messages);
@@ -465,7 +473,7 @@ function attachWsHandlers() {
         }
     };
     ws.onerror = (e) => showError("WebSocket error");
-    ws.onclose = () => setTimeout(connectWebSocket(), 5000);
+    ws.onclose = () => setTimeout(connectWebSocket, 5000);
 }
 
 function showError(msg) {
@@ -908,7 +916,7 @@ function renderBlocked(message, prevmsg) {
     return div;
 }
 
-const threshold = 100
+const threshold = 20
 let missedWhileScrolledUp = 0, busymissed = 0;
 function shouldAutoScroll(el) {
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
@@ -973,10 +981,10 @@ function updateMissedIndicator(count) {
         eledad.style.display = "none";
     }
 }
-let loadedCount = 0;
+let oldestLoadedMessage = null;
+let loadingHistory = false;
 let currentObserver = null;
 let loadTriggerEl = null;
-
 function makeLoadTrigger(channelName) {
     const t = document.createElement("div");
     t.style.height = "500px";
@@ -986,16 +994,11 @@ function makeLoadTrigger(channelName) {
     let seen = false;
     const io = new IntersectionObserver(e => {
         const v = e[0].isIntersecting;
-        if (v && !seen && state.hasMoreMessages !== false) {
+        if (v && !seen && !t._deactivated && state.hasMoreMessages !== false) {
             seen = true;
             setTimeout(() => {
-                if (seen) {
-                    ws.send(JSON.stringify({
-                        cmd: "messages_get",
-                        channel: channelName,
-                        limit: state.message_ontime_limit,
-                        start: loadedCount
-                    }));
+                if (seen && !t._deactivated) {
+                    loadOlderMessages();
                 }
             }, 300);
         }
@@ -1003,60 +1006,140 @@ function makeLoadTrigger(channelName) {
     });
 
     io.observe(t);
+    t._observer = io; 
     currentObserver = io;
 
     return t;
 }
 
-function listMessages(messageList, channel = state._currentChannel) {
-    if (!messageList?.length) {
-        state.hasMoreMessages = false;
-        if (currentObserver) currentObserver.disconnect();
-        if (loadTriggerEl) loadTriggerEl.remove();
+function filterNewMessages(messages) {
+    return messages.filter(msg => {
+        return !state.messages[msg.id];
+    });
+}
+
+function clearMessageState() {
+    state.messages = {};
+
+    oldestLoadedMessage = null;
+    state.hasMoreMessages = true;
+
+    if (currentObserver) {
+        currentObserver.disconnect();
+        currentObserver = null;
+    }
+
+    if (loadTriggerEl) {
+        loadTriggerEl.remove();
+        loadTriggerEl = null;
+    }
+
+    const chatArea = document.getElementById("interactive_logs");
+
+    if (chatArea) {
+        chatArea.innerHTML = "";
+    }
+
+    lastmsgid = null;
+}
+
+function loadOlderMessages() {
+    if (!oldestLoadedMessage) {
+        console.log("[loadOlderMessages] No oldest message loaded yet");
+        return;
+    }
+    if (loadingHistory) {
+        console.log("[loadOlderMessages] Already loading history, skipping");
         return;
     }
 
-    if (messageList.length < state.message_ontime_limit) {
+    console.log("[loadOlderMessages] Loading older messages around:", oldestLoadedMessage.id);
+    loadingHistory = true;
+
+    ws.send(JSON.stringify({
+        cmd: "messages_around",
+        channel: state.currentChannel,
+        around: oldestLoadedMessage.id,
+        bounds: {
+            above: 0,
+            below: 20
+        }
+    }));
+}
+async function listMessages(messageList) {
+    if (!messageList?.length) {
+        console.log("[listMessages] Empty message list");
+        loadingHistory = false;
         state.hasMoreMessages = false;
-        if (currentObserver) currentObserver.disconnect();
-        if (loadTriggerEl) loadTriggerEl.remove();
+        return;
     }
 
-    loadedCount += messageList.length;
+    const fresh = filterNewMessages(messageList);
+    console.log("[listMessages] Processing", fresh.length, "new messages out of", messageList.length);
+
+    if (!fresh.length) {
+        console.log("[listMessages] All messages were duplicates");
+        loadingHistory = false;
+        return;
+    }
 
     const chatArea = document.getElementById("interactive_logs");
-    if (!chatArea) return;
 
-    loader.hide();
+    const refEl = chatArea.querySelector(".msg");
+    const refTop = refEl?.getBoundingClientRect().top;
 
-    const prev = chatArea.scrollHeight;
+    console.log("[listMessages] Anchoring to message, screen pos:", refTop);
 
     const frag = document.createDocumentFragment();
 
     const oldTrigger = chatArea.querySelector(".load-trigger");
     if (oldTrigger) oldTrigger.remove();
 
-    const trigger = makeLoadTrigger(channel);
+    const trigger = makeLoadTrigger(state.currentChannel);
     trigger.className = "load-trigger";
     loadTriggerEl = trigger;
     frag.appendChild(trigger);
 
-    for (const m of messageList) {
-        const n = renderMessage(m);
-        if (n) frag.appendChild(n);
+    for (const msg of fresh) {
+        state.messages[msg.id] = msg;
+
+        const node = renderMessage(msg);
+        if (node) frag.appendChild(node);
     }
 
     const first = chatArea.firstChild;
-    if (first) chatArea.insertBefore(frag, first);
-    else chatArea.appendChild(frag);
 
-    requestAnimationFrame(() => {
-        const next = chatArea.scrollHeight;
-        chatArea.scrollTop += next - prev;
-    });
+    if (first) {
+        chatArea.insertBefore(frag, first);
+    } else {
+        chatArea.appendChild(frag);
+    }
 
-    loadedCount += messageList.length;
+    if (fresh.length) {
+        oldestLoadedMessage = fresh[0];
+    }
 
+    if (refEl && refTop != null) {
+        requestAnimationFrame(() => {
+            const newRefTop = refEl.getBoundingClientRect().top;
+            const diff = newRefTop - refTop;
+
+            console.log("[listMessages] Scroll adjustment:", {
+                refTop,
+                newRefTop,
+                diff,
+                before: chatArea.scrollTop
+            });
+
+            chatArea.scrollTop += diff;
+
+            console.log("[listMessages] After adjustment:", {
+                scrollTop: chatArea.scrollTop
+            });
+        });
+    }
+
+    loadingHistory = false;
     attemptResolveAllMissingReplies();
 }
 async function changeServer(x) {
@@ -1065,10 +1148,7 @@ async function changeServer(x) {
     const channelsState = settings.get("channels_state") || {};
     const savedChannel = channelsState[currentServer];
 
-    const chatArea = document.getElementById("interactive_logs");
-    if (chatArea) {
-        chatArea.innerHTML = "";
-    }
+    clearMessageState();
 
     try {
         ws.close();
@@ -1099,18 +1179,13 @@ async function changeServer(x) {
     });
 }
 function changeChannel(channel) {
-    loadedCount = 0;
-    if (currentObserver) currentObserver.disconnect();
-    lastmsgid = null;
-    additionalMessageLoad = false;
+    clearMessageState();
 
     const found = state.channelsArray.find(c => c.name === channel || c.id === channel);
     if (found?.type === "chat") {
         channel = found.id
     }
 
-    const chatArea = document.getElementById("interactive_logs");
-    chatArea.innerHTML = "";
     state.currentChannel = channel;
 
     const channelsState = settings.get("channels_state") || {};
@@ -1347,8 +1422,6 @@ function updateMessageReactions(msgId) {
     const msg = state.messages[msgId];
     if (!msg) return;
 
-    console.log("UPDATE MSG REA");
-
     const groupContent = wrapper.querySelector('.data');
     if (groupContent) {
         renderReactions(msg, groupContent);
@@ -1378,6 +1451,10 @@ function listInPane(messageList) {
     const chatArea = document.getElementById("listspane");
     for (const message of messageList) {
         const msgEl = renderVisible(message)
+        msgEl.addEventListener("click", () => {
+            jumpToMessage(message.id)
+        })
+
         if (msgEl) chatArea.appendChild(msgEl);
     }
 }
@@ -1470,10 +1547,134 @@ function editMessage(mid) {
     });
 }
 
+function jumpToHistory(messageId) {
+    console.log("[jumpToHistory] Jumping to message:", messageId);
+    clearMessageState();
+
+    ws.send(JSON.stringify({
+        cmd: "messages_around",
+        channel: state.currentChannel,
+        around: messageId,
+        bounds: {
+            above: 50,
+            below: 50
+        }
+    }));
+
+    state.pendingJumpTarget = messageId;
+}
+
+function handleMessagesAround(data) {
+    loadingHistory = false;
+    const messages = (data.messages || []).filter(msg => !state.messages[msg.id]);
+    if (!messages.length) {
+        console.log("[handleMessagesAround] Empty message list received");
+        return;
+    }
+
+    const isJump = !!state.pendingJumpTarget;
+    console.log("[handleMessagesAround] Received", messages.length, "messages, isJump:", isJump);
+
+    const chatArea = document.getElementById("interactive_logs");
+
+    if (isJump) {
+        chatArea.innerHTML = "";
+    }
+
+    const frag = document.createDocumentFragment();
+
+    for (const msg of messages) {
+        state.messages[msg.id] = msg;
+        const node = renderMessage(msg);
+        if (node) frag.appendChild(node);
+    }
+
+    if (isJump) {
+        console.log("[handleMessagesAround] Jump mode: clearing and appending messages");
+        chatArea.appendChild(frag);
+    } else {
+        const oldTrigger = chatArea.querySelector(".load-trigger");
+
+        if (oldTrigger) {
+            oldTrigger._deactivated = true;
+            if (oldTrigger._observer) oldTrigger._observer.disconnect();
+        }
+
+        const refEl = oldTrigger;
+        const scrollTopBefore = chatArea.scrollTop;
+        const offsetTopBefore = refEl ? refEl.offsetTop : null;
+
+        const first = chatArea.firstChild;
+        if (first) {
+            chatArea.insertBefore(frag, first);
+        } else {
+            chatArea.appendChild(frag);
+        }
+
+        const trigger2 = makeLoadTrigger(state.currentChannel);
+        trigger2.className = "load-trigger";
+        loadTriggerEl = trigger2;
+        chatArea.insertBefore(trigger2, chatArea.firstChild);
+
+        if (refEl && offsetTopBefore !== null) {
+            const diff = refEl.offsetTop - offsetTopBefore;
+            console.log("[handleMessagesAround] Scroll-up adjustment:", diff, "px");
+            chatArea.scrollTop = scrollTopBefore + diff;
+        } else {
+            console.log("[handleMessagesAround] No valid anchor message found, not adjusting scroll");
+        }
+
+        if (oldTrigger) oldTrigger.remove();
+    }
+
+    if (messages.length) {
+        oldestLoadedMessage = messages[0];
+    }
+
+    if (!messages.length || data.range?.start === 0) {
+        state.hasMoreMessages = false;
+    }
+
+    if (isJump) {
+        requestAnimationFrame(() => {
+            if (state.pendingJumpTarget) {
+                console.log("[handleMessagesAround] Executing jump to message:", state.pendingJumpTarget);
+                jumpToMessage(state.pendingJumpTarget);
+                state.pendingJumpTarget = null;
+            }
+        });
+    }
+}
 function jumpToMessage(id) {
-    const el = document.querySelector(`[data-id="${id}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const el = document.querySelector(
+        `[data-id="${CSS.escape(id)}"]`
+    );
+
+    if (!el) {
+        jumpToHistory(id);
+        return;
+    }
+
+    const container =
+        document.getElementById("interactive_logs");
+
+    const containerRect =
+        container.getBoundingClientRect();
+
+    const elRect =
+        el.getBoundingClientRect();
+
+    const top =
+        container.scrollTop +
+        (elRect.top - containerRect.top) -
+        (container.clientHeight / 2) +
+        (elRect.height / 2);
+
+    container.scrollTo({
+        top,
+        behavior: "smooth"
+    });
+
     el.classList.add("pulseh");
-    setTimeout(() => { el.classList.remove("pulseh") }, 2000)
+    setTimeout(() => el.classList.remove("pulseh"), 3000);
 }

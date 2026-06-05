@@ -290,6 +290,7 @@ class ActionBuilder {
 }
 class ContentParser {
     static imageRegex = /(https?:\/\/[^\s]+)/gi
+    static _probeCache = new Map();
 
     static parse(text) {
         const container = document.createElement("div")
@@ -311,12 +312,13 @@ class ContentParser {
     }
 
     static async probe(url) {
+        if (this._probeCache.has(url)) return this._probeCache.get(url);
         return new Promise(res => {
-            const img = new Image()
-            img.onload = () => res(true)
-            img.onerror = () => res(false)
-            img.src = url
-        })
+            const img = new Image();
+            img.onload = () => { this._probeCache.set(url, true); res(true); };
+            img.onerror = () => { this._probeCache.set(url, false); res(false); };
+            img.src = url;
+        });
     }
 
     static replaceTextLinks(root) {
@@ -343,17 +345,20 @@ class ContentParser {
                 if (this.isLikelyImage(url)) {
                     frag.appendChild(this.createImage(url))
                 } else {
-                    const a = document.createElement("a")
-                    a.href = url
-                    a.textContent = url
-
-                    this.probe(url).then(ok => {
-                        if (ok && a.parentNode) {
-                            a.replaceWith(this.createImage(url))
-                        }
-                    })
-
-                    frag.appendChild(a)
+                    if (this._probeCache.get(url) === true) {
+                        frag.appendChild(this.createImage(url));
+                    } else if (this._probeCache.get(url) === false) {
+                        const a = document.createElement("a");
+                        a.href = url; a.textContent = url;
+                        frag.appendChild(a);
+                    } else {
+                        const a = document.createElement("a");
+                        a.href = url; a.textContent = url;
+                        this.probe(url).then(ok => {
+                            if (ok && a.parentNode) a.replaceWith(this.createImage(url));
+                        });
+                        frag.appendChild(a);
+                    }
                 }
 
                 lastIndex = end
