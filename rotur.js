@@ -75,6 +75,7 @@ async function loginWithToken(token) {
         roturState.userToken = packet.key || token;
         roturState.user = { ...packet };
 
+        initialServerLoad();
         delete roturState.user.key;
         delete roturState.user.password;
 
@@ -102,10 +103,6 @@ async function loginWithToken(token) {
 
         roturState.authenticated = true;
 
-        say("Connected")
-        setTimeout(() => {
-            initialServerLoad();
-        }, 2000);
         loader.hide();
         return `Logged in as ${roturState.user.username}`;
     } catch (error) {

@@ -1,0 +1,14 @@
+@keyframes textslide {
+  0% {
+  width: 0;
+  }
+
+  100% {
+    width: 100%;
+  }
+}
+
+.contains_text {
+  animation: textslide .5s cubic-bezier(0.075, 0.82, 0.165, 1);
+  overflow: hidden;
+}

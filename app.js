@@ -31,6 +31,9 @@ function createInitialState() {
         renderStart: 0,
         renderEnd: 0,
 
+        historyMode: false,
+        liveQueue: [],
+
         set currentChannel(value) {
             this._currentChannel = value;
             settings.set("currentServer", currentServer);
@@ -143,6 +146,7 @@ function attachWsHandlers() {
         }
         switch (data.cmd) {
             case "handshake": {
+                say("Connected")
                 const vKey = data?.val?.validator_key;
                 if (vKey) state.validator_key = vKey;
                 state.server = data?.val?.server || {};
@@ -922,12 +926,19 @@ function shouldAutoScroll(el) {
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
     return atBottom
 }
-
 function addMessage(messagePacket) {
     const chatArea = document.getElementById("interactive_logs");
 
     if (state.currentChannel == messagePacket.channel) {
         const message = messagePacket.message;
+
+        if (state.historyMode) {
+            state.liveQueue = state.liveQueue || [];
+            state.liveQueue.push(message);
+            updateLiveQueueBadge(state.liveQueue.length);
+            return;
+        }
+
         chatArea.appendChild(renderMessage(message));
         attemptResolveMissingRepliesFor(message.id);
 
@@ -939,7 +950,6 @@ function addMessage(messagePacket) {
                 chatArea.scrollTop = chatArea.scrollHeight;
                 state.scrollLocked = true;
             }, 200);
-
             missedWhileScrolledUp = 0;
             updateMissedIndicator(0);
         } else {
@@ -1006,7 +1016,7 @@ function makeLoadTrigger(channelName) {
     });
 
     io.observe(t);
-    t._observer = io; 
+    t._observer = io;
     currentObserver = io;
 
     return t;
@@ -1018,11 +1028,48 @@ function filterNewMessages(messages) {
     });
 }
 
+function makeBottomLoadTrigger(channelName) {
+    const t = document.createElement("div");
+    t.className = "load-trigger-bottom";
+    t.style.height = "500px";
+
+    let seen = false;
+    const io = new IntersectionObserver(e => {
+        const v = e[0].isIntersecting;
+        if (v && !seen && !t._deactivated) {
+            seen = true;
+            setTimeout(() => {
+                if (seen && !t._deactivated) loadNewerMessages();
+            }, 300);
+        }
+        if (!v) seen = false;
+    });
+
+    io.observe(t);
+    t._observer = io;
+    return t;
+}
+
+let newestLoadedMessage = null;
+
+function loadNewerMessages() {
+    if (!newestLoadedMessage || loadingHistory) return;
+    loadingHistory = true;
+
+    ws.send(JSON.stringify({
+        cmd: "messages_around",
+        channel: state.currentChannel,
+        around: newestLoadedMessage.id,
+        bounds: { above: 20, below: 0 }
+    }));
+}
+
 function clearMessageState() {
     state.messages = {};
 
     oldestLoadedMessage = null;
     state.hasMoreMessages = true;
+    newestLoadedMessage = null;
 
     if (currentObserver) {
         currentObserver.disconnect();
@@ -1548,17 +1595,14 @@ function editMessage(mid) {
 }
 
 function jumpToHistory(messageId) {
-    console.log("[jumpToHistory] Jumping to message:", messageId);
     clearMessageState();
+    enterHistoryMode();
 
     ws.send(JSON.stringify({
         cmd: "messages_around",
         channel: state.currentChannel,
         around: messageId,
-        bounds: {
-            above: 50,
-            below: 50
-        }
+        bounds: { above: 50, below: 50 }
     }));
 
     state.pendingJumpTarget = messageId;
@@ -1611,6 +1655,9 @@ function handleMessagesAround(data) {
             chatArea.appendChild(frag);
         }
 
+        const bottomTrigger = makeBottomLoadTrigger(state.currentChannel);
+        chatArea.appendChild(bottomTrigger);
+
         const trigger2 = makeLoadTrigger(state.currentChannel);
         trigger2.className = "load-trigger";
         loadTriggerEl = trigger2;
@@ -1629,6 +1676,7 @@ function handleMessagesAround(data) {
 
     if (messages.length) {
         oldestLoadedMessage = messages[0];
+        newestLoadedMessage = messages[messages.length - 1];
     }
 
     if (!messages.length || data.range?.start === 0) {
@@ -1647,7 +1695,7 @@ function handleMessagesAround(data) {
 }
 function jumpToMessage(id) {
     const el = document.querySelector(
-        `[data-id="${CSS.escape(id)}"]`
+        `#interactive_logs [data-id="${CSS.escape(id)}"]`
     );
 
     if (!el) {
@@ -1655,26 +1703,75 @@ function jumpToMessage(id) {
         return;
     }
 
-    const container =
-        document.getElementById("interactive_logs");
+    setTimeout(() => {
+        const container =
+            document.getElementById("interactive_logs");
 
-    const containerRect =
-        container.getBoundingClientRect();
+        const containerRect =
+            container.getBoundingClientRect();
 
-    const elRect =
-        el.getBoundingClientRect();
+        const elRect =
+            el.getBoundingClientRect();
 
-    const top =
-        container.scrollTop +
-        (elRect.top - containerRect.top) -
-        (container.clientHeight / 2) +
-        (elRect.height / 2);
+        const top =
+            container.scrollTop +
+            (elRect.top - containerRect.top) -
+            (container.clientHeight / 2) +
+            (elRect.height / 2);
 
-    container.scrollTo({
-        top,
-        behavior: "smooth"
-    });
+        container.scrollTo({
+            top,
+            behavior: "auto"
+        });
 
-    el.classList.add("pulseh");
-    setTimeout(() => el.classList.remove("pulseh"), 3000);
+        el.classList.add("pulseh");
+        setTimeout(() => el.classList.remove("pulseh"), 3000);
+    }, 500)
+}
+
+function enterHistoryMode() {
+    state.historyMode = true;
+    state.liveQueue = [];
+    showJumpToLiveButton();
+}
+
+function exitHistoryMode() {
+    state.historyMode = false;
+    const queue = state.liveQueue || [];
+    state.liveQueue = [];
+    hideJumpToLiveButton();
+    updateLiveQueueBadge(0);
+
+    if (queue.length) {
+        // Re-fetch current channel fresh instead of trying to splice queue in
+        clearMessageState();
+        ws.send(JSON.stringify({
+            cmd: "messages_get",
+            channel: state.currentChannel,
+            limit: state.message_ontime_limit
+        }));
+    }
+}
+
+function showJumpToLiveButton() {
+    let btn = document.getElementById("jumpToLiveBtn");
+    if (btn) return;
+    btn = document.createElement("button");
+    btn.id = "jumpToLiveBtn";
+    btn.className = "jump-to-live";
+    btn.innerHTML = `<span class="icon">arrow_downward</span> Jump to present`;
+    btn.onclick = exitHistoryMode;
+    document.getElementById("interactive_logs").parentElement.appendChild(btn);
+}
+
+function hideJumpToLiveButton() {
+    document.getElementById("jumpToLiveBtn")?.remove();
+}
+
+function updateLiveQueueBadge(count) {
+    const btn = document.getElementById("jumpToLiveBtn");
+    if (!btn) return;
+    btn.innerHTML = count
+        ? `<span class="icon">arrow_downward</span> ${count} new — jump to present`
+        : `<span class="icon">arrow_downward</span> Jump to present`;
 }
